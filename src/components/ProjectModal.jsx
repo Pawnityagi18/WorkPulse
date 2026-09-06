@@ -7,7 +7,6 @@ export default function ProjectModal({ project, onClose, onSubmitProposal, curre
   const [estimatedDays, setEstimatedDays] = useState(project.daysLeft || 14);
   const [coverLetter, setCoverLetter] = useState('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-
   const [errors, setErrors] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -17,20 +16,22 @@ export default function ProjectModal({ project, onClose, onSubmitProposal, curre
   const platformFee = Math.round(bidAmount * 0.05);
   const netEarnings = bidAmount - platformFee;
 
-  // AI Proposal Cover Letter Generator Handler
-  const handleGenerateAIProposal = () => {
+  // AI Proposal Cover Letter Generator Handler (Fixed with async/await)
+  const handleGenerateAIProposal = async () => {
     setIsGeneratingAI(true);
-    setTimeout(() => {
-      const aiPitch = generateAIProposal(project, currentUser?.name || 'there');
+    try {
+      const aiPitch = await generateAIProposal(project, currentUser?.name || 'there', coverLetter);
       setCoverLetter(aiPitch);
+    } catch (error) {
+      console.error('AI Proposal generation error:', error);
+    } finally {
       setIsGeneratingAI(false);
-    }, 400);
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const newErrors = {};
-
     if (!bidAmount || bidAmount <= 0) newErrors.bidAmount = 'Valid bid offer required';
     if (!coverLetter.trim() || coverLetter.length < 20) newErrors.coverLetter = 'Proposal must be at least 20 characters';
 
@@ -69,7 +70,6 @@ export default function ProjectModal({ project, onClose, onSubmitProposal, curre
             <span className="badge badge-category">{project.categoryName || project.category}</span>
             <span className="badge badge-verified">Verified Project</span>
           </div>
-
           <button 
             onClick={onClose}
             style={{
@@ -91,7 +91,6 @@ export default function ProjectModal({ project, onClose, onSubmitProposal, curre
 
         {/* Modal Body */}
         <div style={{ padding: '1.75rem' }}>
-
           {/* Project Title */}
           <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1rem', color: 'var(--text-main)' }}>
             {project.title}
@@ -114,14 +113,12 @@ export default function ProjectModal({ project, onClose, onSubmitProposal, curre
                 ${project.budget.toLocaleString()} <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>({project.budgetType})</span>
               </div>
             </div>
-
             <div>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Submission Deadline</div>
               <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
                 {project.deadline} ({project.daysLeft} days left)
               </div>
             </div>
-
             <div>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Client Info</div>
               <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -238,14 +235,12 @@ export default function ProjectModal({ project, onClose, onSubmitProposal, curre
                     />
                     {errors.bidAmount && <span style={{ color: 'var(--accent-rose)', fontSize: '0.75rem' }}>{errors.bidAmount}</span>}
                   </div>
-
                   <div>
                     <label className="form-label" style={{ color: 'var(--text-dim)' }}>Platform Fee (5%)</label>
                     <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-muted)', paddingTop: '0.5rem' }}>
                       -${platformFee}
                     </div>
                   </div>
-
                   <div>
                     <label className="form-label" style={{ color: 'var(--accent-emerald)' }}>Your Net Earnings</label>
                     <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-emerald)', paddingTop: '0.4rem', fontFamily: 'var(--font-heading)' }}>
@@ -270,7 +265,7 @@ export default function ProjectModal({ project, onClose, onSubmitProposal, curre
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                   <label className="form-label" style={{ margin: 0 }}>Cover Letter & Pitch Proposal</label>
                   <button 
-                    type="button"
+                    type="button" 
                     onClick={handleGenerateAIProposal}
                     disabled={isGeneratingAI}
                     className="btn btn-sm"
@@ -292,6 +287,7 @@ export default function ProjectModal({ project, onClose, onSubmitProposal, curre
                     {isGeneratingAI ? 'Generating AI Proposal...' : '✨ Generate AI Proposal'}
                   </button>
                 </div>
+
                 <textarea 
                   rows={6}
                   placeholder="Explain why you are the ideal freelancer for this project, or click '✨ Generate AI Proposal' above..."
@@ -312,9 +308,7 @@ export default function ProjectModal({ project, onClose, onSubmitProposal, curre
               </div>
             </form>
           )}
-
         </div>
-
       </div>
     </div>
   );
