@@ -1,11 +1,12 @@
+// Initial categories with clean 0 counts (No fake numbers)
 export const INITIAL_CATEGORIES = [
-  { id: 'web-dev', name: 'Web Development', icon: 'Code', count: 420, topSkill: 'React, Node.js' },
-  { id: 'ui-ux', name: 'UI/UX & Product Design', icon: 'Palette', count: 315, topSkill: 'Figma, Tailwind' },
-  { id: 'mobile-app', name: 'Mobile App Development', icon: 'Smartphone', count: 280, topSkill: 'Flutter, React Native' },
-  { id: 'ai-ml', name: 'AI & Machine Learning', icon: 'Cpu', count: 195, topSkill: 'Python, PyTorch' },
-  { id: 'content-writing', name: 'Content & Copywriting', icon: 'FileText', count: 240, topSkill: 'SEO, Technical' },
-  { id: 'digital-marketing', name: 'Digital Marketing', icon: 'TrendingUp', count: 185, topSkill: 'PPC, Growth' },
-  { id: 'cloud-devops', name: 'Cloud & DevOps', icon: 'Server', count: 160, topSkill: 'AWS, Docker, K8s' },
+  { id: 'web-dev', name: 'Web Development', icon: 'Code', count: 0, topSkill: 'React, Node.js' },
+  { id: 'ui-ux', name: 'UI/UX & Product Design', icon: 'Palette', count: 0, topSkill: 'Figma, Tailwind' },
+  { id: 'mobile-app', name: 'Mobile App Development', icon: 'Smartphone', count: 0, topSkill: 'Flutter, React Native' },
+  { id: 'ai-ml', name: 'AI & Machine Learning', icon: 'Cpu', count: 0, topSkill: 'Python, PyTorch' },
+  { id: 'content-writing', name: 'Content & Copywriting', icon: 'FileText', count: 0, topSkill: 'SEO, Technical' },
+  { id: 'digital-marketing', name: 'Digital Marketing', icon: 'TrendingUp', count: 0, topSkill: 'PPC, Growth' },
+  { id: 'cloud-devops', name: 'Cloud & DevOps', icon: 'Server', count: 0, topSkill: 'AWS, Docker, K8s' },
 ];
 
 export const INITIAL_PROJECTS = [

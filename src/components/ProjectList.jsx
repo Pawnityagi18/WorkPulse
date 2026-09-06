@@ -1,9 +1,24 @@
-import React, { useState } from 'react';
-import { Filter, DollarSign, Clock, MapPin, CheckCircle2, Bookmark, Send, Sparkles, AlertCircle, ArrowUpDown, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Filter, 
+  DollarSign, 
+  Clock, 
+  MapPin, 
+  CheckCircle2, 
+  Bookmark, 
+  Send, 
+  Sparkles, 
+  AlertCircle, 
+  ArrowUpDown, 
+  ChevronDown, 
+  Trash2,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react';
 
 export default function ProjectList({ 
-  projects, 
-  categories, 
+  projects = [], 
+  categories = [], 
   selectedCategory, 
   setSelectedCategory,
   searchQuery,
@@ -14,18 +29,79 @@ export default function ProjectList({
   setUrgencyFilter,
   sortBy,
   setSortBy,
-  savedProjects,
+  savedProjects = [],
   onToggleSaveProject,
   onSelectProject,
+  onDeleteProject,
   loading = false,
   error = '',
   total
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const jobsPerPage = 10; // Ek page me 10 jobs
+
   const filteredProjects = projects;
 
+  // Jab bhi category, search ya filter change ho, wapas Page 1 par aa jaye
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, searchQuery, budgetRange, urgencyFilter, sortBy]);
+
+  // 1. Pagination Calculation (10 jobs per page)
+  const totalJobs = filteredProjects.length;
+  const totalPages = Math.ceil(totalJobs / jobsPerPage) || 1;
+  const indexOfLastJob = currentPage * jobsPerPage;
+  const indexOfFirstJob = indexOfLastJob - jobsPerPage;
+  const currentJobs = filteredProjects.slice(indexOfFirstJob, indexOfLastJob);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+      window.scrollTo({ top: 200, behavior: 'smooth' }); // Smooth scroll to top of list
+    }
+  };
+
+  // 2. Dynamic Job Count per Category
+  const getCategoryCount = (catId, catName) => {
+    if (catId === 'all') return projects.length;
+    return projects.filter(p => {
+      const pCat = p.categoryName || p.category || p.categoryId;
+      return pCat === catId || pCat === catName;
+    }).length;
+  };
+
+  // 3. Dynamic Job Count per Urgency Badge
+  const getUrgencyCount = (urgencyId) => {
+    if (urgencyId === 'all') return projects.length;
+    return projects.filter(p => p.urgency === urgencyId).length;
+  };
+
+  // 4. Delete Project Handler
+  const handleDelete = async (e, projectId) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this job posting?')) return;
+
+    if (onDeleteProject) {
+      onDeleteProject(projectId);
+    } else {
+      try {
+        const token = localStorage.getItem('token') || JSON.parse(localStorage.getItem('user') || '{}')?.token;
+        const res = await fetch(`/api/projects/${projectId}`, {
+          method: 'DELETE',
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+        });
+        if (res.ok) {
+          window.location.reload();
+        }
+      } catch (err) {
+        console.error('Failed to delete project:', err);
+      }
+    }
+  };
+
   return (
-    <section style={{ padding: '3.5rem 0' }}>
+    <section id="projects-section" style={{ padding: '3.5rem 0' }}>
       <div className="container">
         
         {/* Section Header & Controls */}
@@ -39,15 +115,14 @@ export default function ProjectList({
         }}>
           <div>
             <h2 style={{ fontSize: '1.85rem', fontWeight: 800, marginBottom: '0.25rem' }}>
-              Available Projects & Jobs ({total ?? filteredProjects.length})
+              Available Projects & Jobs ({total ?? totalJobs})
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.925rem' }}>
-              Explore active job postings from verified clients worldwide
+              Showing {totalJobs > 0 ? indexOfFirstJob + 1 : 0}–{Math.min(indexOfLastJob, totalJobs)} of {totalJobs} active postings (10 per page)
             </p>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-            
             {/* Sort Dropdown */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: 'var(--radius-md)', padding: '0.4rem 0.75rem' }}>
               <ArrowUpDown size={15} color="var(--text-muted)" />
@@ -71,23 +146,13 @@ export default function ProjectList({
                 <option value="proposals" style={{ background: '#111726' }}>Most Proposals</option>
               </select>
             </div>
-
-            {/* Mobile Filter Toggle */}
-            <button 
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="btn btn-secondary btn-sm"
-              style={{ display: 'none' }}
-            >
-              <Filter size={15} /> Filters
-            </button>
-
           </div>
         </div>
 
         {/* Main Content Layout (Sidebar + Card Grid) */}
         <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '2rem' }}>
           
-          {/* Exertio Left Filter Sidebar */}
+          {/* Left Filter Sidebar */}
           <aside className="glass-card" style={{ padding: '1.5rem', height: 'fit-content' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border-subtle)' }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -117,30 +182,17 @@ export default function ProjectList({
             <div className="form-group">
               <label className="form-label">Search Keyword</label>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <img 
-                  src="/logo.jpg" 
-                  alt="Search Logo"
-                  style={{
-                    position: 'absolute',
-                    left: '10px',
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '6px',
-                    objectFit: 'cover'
-                  }}
-                />
                 <input 
                   type="text"
                   placeholder="e.g. Next.js, Figma..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="form-input"
-                  style={{ paddingLeft: '2.5rem' }}
                 />
               </div>
             </div>
 
-            {/* Category Filter Dropdown */}
+            {/* Category Filter Dropdown with Dynamic Count */}
             <div className="form-group">
               <label className="form-label">Category</label>
               <select 
@@ -148,9 +200,11 @@ export default function ProjectList({
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="form-select"
               >
-                <option value="all">All Categories</option>
+                <option value="all">All Categories ({projects.length})</option>
                 {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name} ({getCategoryCount(cat.id, cat.name)})
+                  </option>
                 ))}
               </select>
             </div>
@@ -182,35 +236,61 @@ export default function ProjectList({
               </div>
             </div>
 
-            {/* Urgency Badge Filter */}
+            {/* Urgency Badge Filter with Live Badges */}
             <div className="form-group">
               <label className="form-label">Project Urgency</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.2rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.4rem' }}>
                 {[
-                  { id: 'all', label: 'All Jobs' },
-                  { id: 'Featured', label: '★ Featured Only' },
-                  { id: 'Urgent', label: '⚡ Urgent Only' },
-                  { id: 'Hot', label: '🔥 Hot Bids' }
+                  { id: 'all', label: 'All Jobs', count: projects.length },
+                  { id: 'Featured', label: '★ Featured Only', count: getUrgencyCount('Featured') },
+                  { id: 'Urgent', label: '⚡ Urgent Only', count: getUrgencyCount('Urgent') },
+                  { id: 'Hot', label: '🔥 Hot Bids', count: getUrgencyCount('Hot') }
                 ].map(item => (
-                  <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', cursor: 'pointer', color: urgencyFilter === item.id ? '#FFF' : 'var(--text-muted)' }}>
-                    <input 
-                      type="radio"
-                      name="urgency"
-                      checked={urgencyFilter === item.id}
-                      onChange={() => setUrgencyFilter(item.id)}
-                      style={{ accentColor: 'var(--primary)' }}
-                    />
-                    {item.label}
+                  <label 
+                    key={item.id} 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between',
+                      fontSize: '0.85rem', 
+                      cursor: 'pointer', 
+                      color: urgencyFilter === item.id ? '#FFF' : 'var(--text-muted)',
+                      padding: '0.2rem 0'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <input 
+                        type="radio"
+                        name="urgency"
+                        checked={urgencyFilter === item.id}
+                        onChange={() => setUrgencyFilter(item.id)}
+                        style={{ accentColor: 'var(--primary)' }}
+                      />
+                      {item.label}
+                    </div>
+                    <span style={{ 
+                      fontSize: '0.75rem', 
+                      background: urgencyFilter === item.id ? 'var(--primary)' : 'rgba(255,255,255,0.08)', 
+                      color: '#FFF',
+                      padding: '2px 8px', 
+                      borderRadius: '10px',
+                      fontWeight: 600
+                    }}>
+                      {item.count}
+                    </span>
                   </label>
                 ))}
               </div>
             </div>
-
           </aside>
 
-          {/* Project Cards List */}
+          {/* Project Cards List (10 per page) */}
           <div>
-            {loading ? <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>Loading projects…</div> : error ? <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>{error}</div> : filteredProjects.length === 0 ? (
+            {loading ? (
+              <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>Loading projects…</div>
+            ) : error ? (
+              <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>{error}</div>
+            ) : currentJobs.length === 0 ? (
               <div className="glass-card" style={{ padding: '3rem 2rem', textAlign: 'center' }}>
                 <AlertCircle size={42} color="var(--text-dim)" style={{ marginBottom: '1rem' }} />
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem' }}>No projects match your criteria</h3>
@@ -228,150 +308,238 @@ export default function ProjectList({
                 </button>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                {filteredProjects.map((proj) => {
-                  const projectId = proj._id || proj.id;
-                  const isSaved = savedProjects.includes(projectId);
-                  const client = proj.client || {
-                    name: proj.clientName || 'WorkPulse client',
-                    avatar: proj.clientAvatar,
-                    verified: proj.verifiedClient,
-                    rating: proj.clientRating,
-                    location: proj.clientLocation
-                  };
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  {currentJobs.map((proj) => {
+                    const projectId = proj._id || proj.id;
+                    const isSaved = savedProjects.includes(projectId);
+                    const client = proj.client || {
+                      name: proj.clientName || 'WorkPulse client',
+                      avatar: proj.clientAvatar,
+                      verified: proj.verifiedClient,
+                      rating: proj.clientRating,
+                      location: proj.clientLocation
+                    };
 
-                  return (
-                    <div 
-                      key={projectId}
-                      className="glass-card glass-card-hoverable"
-                      style={{ padding: '1.5rem' }}
-                    >
-                      {/* Top Meta Line: Urgency Tag + Category + Bookmark */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                          {proj.urgency === 'Featured' && <span className="badge badge-featured">★ Featured</span>}
-                          {proj.urgency === 'Urgent' && <span className="badge badge-urgent">⚡ Urgent</span>}
-                          {proj.urgency === 'Hot' && <span className="badge badge-hot">🔥 Hot</span>}
-                          <span className="badge badge-category">{proj.categoryName || proj.category}</span>
+                    return (
+                      <div 
+                        key={projectId}
+                        className="glass-card glass-card-hoverable"
+                        style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
+                        onClick={() => onSelectProject && onSelectProject(proj)}
+                      >
+                        {/* Top Meta Line: Urgency Tag + Category + Actions */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                            {proj.urgency === 'Featured' && <span className="badge badge-featured">★ Featured</span>}
+                            {proj.urgency === 'Urgent' && <span className="badge badge-urgent">⚡ Urgent</span>}
+                            {proj.urgency === 'Hot' && <span className="badge badge-hot">🔥 Hot</span>}
+                            <span className="badge badge-category">{proj.categoryName || proj.category}</span>
+                          </div>
+
+                          {/* Action Buttons: Delete + Bookmark */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <button 
+                              onClick={(e) => handleDelete(e, projectId)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: '#ef4444',
+                                opacity: 0.8,
+                                transition: 'opacity 0.2s ease, transform 0.2s ease'
+                              }}
+                              onMouseEnter={(e) => e.target.style.opacity = '1'}
+                              onMouseLeave={(e) => e.target.style.opacity = '0.8'}
+                              title="Delete Job"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleSaveProject(projectId);
+                              }}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: isSaved ? 'var(--accent-amber)' : 'var(--text-dim)',
+                                transition: 'transform 0.2s ease'
+                              }}
+                              title={isSaved ? 'Remove Bookmark' : 'Bookmark Job'}
+                            >
+                              <Bookmark size={20} fill={isSaved ? 'var(--accent-amber)' : 'none'} />
+                            </button>
+                          </div>
                         </div>
 
-                        <button 
-                          onClick={() => onToggleSaveProject(projectId)}
+                        {/* Project Title */}
+                        <h3 
                           style={{
-                            background: 'transparent',
-                            border: 'none',
-                            cursor: 'pointer',
-                            color: isSaved ? 'var(--accent-amber)' : 'var(--text-dim)',
-                            transition: 'transform 0.2s ease'
+                            fontSize: '1.2rem',
+                            fontWeight: 700,
+                            marginBottom: '0.75rem',
+                            color: '#FFFFFF',
+                            transition: 'color 0.2s ease'
                           }}
-                          title={isSaved ? 'Remove Bookmark' : 'Bookmark Job'}
+                          onMouseEnter={(e) => e.target.style.color = 'var(--primary)'}
+                          onMouseLeave={(e) => e.target.style.color = '#FFFFFF'}
                         >
-                          <Bookmark size={20} fill={isSaved ? 'var(--accent-amber)' : 'none'} />
-                        </button>
+                          {proj.title}
+                        </h3>
+
+                        {/* Project Brief Snippet */}
+                        <p style={{
+                          color: 'var(--text-muted)',
+                          fontSize: '0.9rem',
+                          marginBottom: '1rem',
+                          lineHeight: 1.5,
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden'
+                        }}>
+                          {proj.description}
+                        </p>
+
+                        {/* Required Skills Pills */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1.25rem' }}>
+                          {(proj.skills || []).map((skill, idx) => (
+                            <span key={idx} className="skill-pill">{skill}</span>
+                          ))}
+                        </div>
+
+                        {/* Card Bottom Meta (Client info + Budget + Proposal CTA) */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          paddingTop: '1rem',
+                          borderTop: '1px solid var(--border-subtle)',
+                          flexWrap: 'wrap',
+                          gap: '1rem'
+                        }}>
+                          {/* Client details */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                            <img 
+                              src={client.avatar || '/logo.jpg'} 
+                              alt={client.name}
+                              style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                            <div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                {client.name}
+                                {client.verified && <CheckCircle2 size={14} color="var(--accent-emerald)" />}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'flex', gap: '0.5rem' }}>
+                                <span>★ {client.rating || 'New'}</span> • <span>{client.location || 'Remote'}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Budget & Submissions */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                            <div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                                {proj.budgetType} Price
+                              </div>
+                              <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--accent-emerald)', fontFamily: 'var(--font-heading)' }}>
+                                ${Number(proj.budget || 0).toLocaleString()}{proj.budgetType === 'Hourly' ? '/hr' : ''}
+                              </div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Proposals</div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>{proj.proposalsCount || 0} bids</div>
+                            </div>
+
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSelectProject && onSelectProject(proj);
+                              }}
+                              className="btn btn-primary btn-sm"
+                            >
+                              <Send size={14} /> Submit Proposal
+                            </button>
+                          </div>
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
 
-                      {/* Project Title */}
-                      <h3 
-                        onClick={() => onSelectProject(proj)}
-                        style={{
-                          fontSize: '1.2rem',
-                          fontWeight: 700,
-                          marginBottom: '0.75rem',
-                          cursor: 'pointer',
-                          color: '#FFFFFF',
-                          transition: 'color 0.2s ease'
-                        }}
-                        onMouseEnter={(e) => e.target.style.color = 'var(--primary)'}
-                        onMouseLeave={(e) => e.target.style.color = '#FFFFFF'}
-                      >
-                        {proj.title}
-                      </h3>
-
-                      {/* Project Brief Snippet */}
-                      <p style={{
-                        color: 'var(--text-muted)',
-                        fontSize: '0.9rem',
-                        marginBottom: '1rem',
-                        lineHeight: 1.5,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden'
-                      }}>
-                        {proj.description}
-                      </p>
-
-                      {/* Required Skills Pills */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1.25rem' }}>
-                        {(proj.skills || []).map((skill, idx) => (
-                          <span key={idx} className="skill-pill">{skill}</span>
-                        ))}
-                      </div>
-
-                      {/* Card Bottom Meta (Client info + Budget + Proposal CTA) */}
-                      <div style={{
+                {/* --- 10 JOBS PER PAGE PAGINATION BAR --- */}
+                {totalPages > 1 && (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    marginTop: '2.5rem',
+                    padding: '1rem',
+                    flexWrap: 'wrap'
+                  }}>
+                    {/* Previous Button */}
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="btn btn-secondary btn-sm"
+                      style={{
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'space-between',
-                        paddingTop: '1rem',
-                        borderTop: '1px solid var(--border-subtle)',
-                        flexWrap: 'wrap',
-                        gap: '1rem'
-                      }}>
-                        
-                        {/* Client details */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                          <img 
-                            src={client.avatar || '/logo.jpg'}
-                            alt={client.name}
-                            style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
-                          />
-                          <div>
-                            <div style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                              {client.name}
-                              {client.verified && <CheckCircle2 size={14} color="var(--accent-emerald)" />}
-                            </div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'flex', gap: '0.5rem' }}>
-                              <span>★ {client.rating || 'New'}</span> • <span>{client.location || 'Remote'}</span>
-                            </div>
-                          </div>
-                        </div>
+                        gap: '0.3rem',
+                        opacity: currentPage === 1 ? 0.4 : 1,
+                        cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      <ChevronLeft size={16} /> Prev
+                    </button>
 
-                        {/* Budget & Submissions */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                          <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                              {proj.budgetType} Price
-                            </div>
-                            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--accent-emerald)', fontFamily: 'var(--font-heading)' }}>
-                              ${Number(proj.budget || 0).toLocaleString()}{proj.budgetType === 'Hourly' ? '/hr' : ''}
-                            </div>
-                          </div>
+                    {/* Page Numbers */}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        style={{
+                          minWidth: '36px',
+                          height: '36px',
+                          borderRadius: '8px',
+                          border: pageNum === currentPage ? '1px solid var(--primary)' : '1px solid var(--border-subtle)',
+                          background: pageNum === currentPage ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                          color: '#FFFFFF',
+                          fontWeight: 700,
+                          fontSize: '0.85rem',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
 
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Proposals</div>
-                            <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>{proj.proposalsCount} bids</div>
-                          </div>
-
-                          <button 
-                            onClick={() => onSelectProject(proj)}
-                            className="btn btn-primary btn-sm"
-                          >
-                            <Send size={14} /> Submit Proposal
-                          </button>
-                        </div>
-
-                      </div>
-
-                    </div>
-                  );
-                })}
-              </div>
+                    {/* Next Button */}
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        opacity: currentPage === totalPages ? 0.4 : 1,
+                        cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      Next <ChevronRight size={16} />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
-
         </div>
-
       </div>
     </section>
   );

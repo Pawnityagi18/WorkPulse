@@ -90,7 +90,7 @@ export default function Footer({ onNavigate }) {
                 <Phone size={16} color="var(--secondary)" /> +1 (800) 555-WORKPULSE
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '0.5rem' }}>
-                Sqrock IT Solutions Internship Project Phase 2 Task 2
+                
               </div>
             </div>
           </div>
@@ -110,7 +110,7 @@ export default function Footer({ onNavigate }) {
         }}>
           <div>© 2026 WorkPulse Marketplace. All rights reserved.</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-            Built with <Heart size={14} color="var(--accent-rose)" fill="var(--accent-rose)" /> for Internship Phase 2
+           
           </div>
         </div>
 
