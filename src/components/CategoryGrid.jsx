@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Code, Palette, Smartphone, Cpu, FileText, TrendingUp, Server } from 'lucide-react';
 
 const iconMap = {
@@ -12,6 +12,24 @@ const iconMap = {
 };
 
 export default function CategoryGrid({ categories = [], selectedCategory, onSelectCategory, projects = [] }) {
+  const [internalProjects, setInternalProjects] = useState(projects);
+
+  // Auto-fetch: Agar App.jsx ne projects nahi bheja, toh direct database se jobs load karega
+  useEffect(() => {
+    if (projects && projects.length > 0) {
+      setInternalProjects(projects);
+    } else {
+      fetch('/api/projects')
+        .then(res => res.json())
+        .then(data => {
+          const list = Array.isArray(data) ? data : (data?.projects || []);
+          setInternalProjects(list);
+        })
+        .catch(err => console.error('CategoryGrid fetch error:', err));
+    }
+  }, [projects]);
+
+  const effectiveProjects = (projects && projects.length > 0) ? projects : internalProjects;
 
   const handleCategoryClick = (catId) => {
     const targetCategory = selectedCategory === catId ? 'all' : catId;
@@ -27,11 +45,17 @@ export default function CategoryGrid({ categories = [], selectedCategory, onSele
     }, 50);
   };
 
+  // Real Database ke hisaab se live job count (ID aur Name dono check karega)
   const getLiveCount = (cat) => {
-    if (!projects || projects.length === 0) return cat.count ?? 0;
-    return projects.filter(p => {
-      const pCat = p.category || p.categoryId || p.categoryName;
-      return pCat === cat.id || pCat === cat.name;
+    if (!effectiveProjects || effectiveProjects.length === 0) return 0;
+    return effectiveProjects.filter(p => {
+      const pCat = p.categoryId || p.category || p.categoryName;
+      return (
+        pCat === cat.id || 
+        pCat === cat.name || 
+        p.categoryId === cat.id || 
+        p.categoryName === cat.name
+      );
     }).length;
   };
 
@@ -109,7 +133,7 @@ export default function CategoryGrid({ categories = [], selectedCategory, onSele
                     <IconComponent size={22} />
                   </div>
 
-                  {/* Category Job Count Badge */}
+                  {/* Real Live Jobs Count (Calculated from Real Database) */}
                   <span style={{
                     fontSize: '0.8rem',
                     fontWeight: 700,
