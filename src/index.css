@@ -6,8 +6,8 @@
   --bg-gradient: linear-gradient(135deg, #E6F4F1 0%, #F0FAF8 50%, #FFFFFF 100%);
   --bg-card: #FFFFFF;
   --bg-card-hover: #F8FDFC;
-  --bg-glass: rgba(255, 255, 255, 0.85);
-  --bg-glass-heavy: rgba(255, 255, 255, 0.95);
+  --bg-glass: rgba(255, 255, 255, 0.45);
+  --bg-glass-heavy: rgba(255, 255, 255, 0.45); /* 🌟 Real Frosted Glass Variable */
   --bg-input: #F1F7F6;
   
   /* Vibrant Brand Accents */
@@ -85,6 +85,19 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
   color: var(--text-main);
   letter-spacing: -0.02em;
+}
+
+/* 🌟 GLOBAL FROSTED GLASS NAVBAR (Na Solid White, Na Dark Blue) */
+header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 900 !important;
+  background: rgba(255, 255, 255, 0.45) !important;
+  background-color: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(0, 128, 128, 0.15) !important;
+  box-shadow: 0 4px 20px rgba(0, 128, 128, 0.05) !important;
 }
 
 /* Bright Elevated Cards */
@@ -265,7 +278,7 @@ input[type=range] {
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
-  justify-content: center;
+  justifyContent: center;
   padding: 1.5rem;
   animation: fadeIn 0.2s ease;
 }
