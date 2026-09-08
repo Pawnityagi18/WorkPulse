@@ -30,7 +30,7 @@ import {
 export default function App() {
   // 🌟 REAL URL SYNC ROUTING: Reads initial URL pathname (/login, /signup, /dashboard, etc.)
   const getInitialRoute = () => {
-    const path = window.location.pathname.replace('/', '').toLowerCase();
+    const path = window.location.pathname.replace('/', '') || 'explore';
     if (['explore', 'freelancers', 'dashboard', 'login', 'signup'].includes(path)) {
       return path;
     }
@@ -46,7 +46,7 @@ export default function App() {
     setActiveTabState(tab);
     const newPath = tab === 'explore' ? '/' : `/${tab}`;
     if (window.location.pathname !== newPath) {
-      window.history.pushState({ tab }, '', newPath);
+      window.history.pushState(null, '', newPath);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -80,7 +80,7 @@ export default function App() {
     }
   });
 
-  // Saved/Bookmarked Projects (No fake 2 badge)
+  // Saved/Bookmarked Projects (No fake numbers)
   const [savedProjectIds, setSavedProjectIds] = useState(() => {
     try {
       const saved = localStorage.getItem('workpulse_saved_projects');
@@ -121,7 +121,7 @@ export default function App() {
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // Sync state to LocalStorage
+  // Sync to localStorage
   useEffect(() => {
     try {
       localStorage.setItem('workpulse_projects', JSON.stringify(projects));
@@ -204,71 +204,38 @@ export default function App() {
     setSavedProjectIds(prev => {
       const isSaved = prev.includes(projectId);
       const next = isSaved ? prev.filter(id => id !== projectId) : [...prev, projectId];
-      showToast(isSaved ? 'Removed from saved projects' : 'Project saved to bookmarks!', 'info');
+      showToast(isSaved ? 'Removed from saved' : 'Project saved!', 'info');
       return next;
     });
   };
 
   const handleCreateProject = async (newProjData) => {
-    if (!currentUser) {
+    if (!currentUser || currentUser.role !== 'client') {
       setIsPostModalOpen(false);
       setActiveTab('login');
       return;
     }
-    if (currentUser.role !== 'client') {
-      setIsPostModalOpen(false);
-      showToast('Only employers/clients can post projects.', 'error');
-      return;
-    }
     try {
-      const newProject = {
-        title: newProjData.title,
-        description: newProjData.description,
-        category: newProjData.category,
-        categoryId: newProjData.category,
-        categoryName: newProjData.categoryName,
-        budget: Number(newProjData.budget),
-        skills: newProjData.skills,
-        duration: newProjData.duration || '1-3 months',
-        budgetType: newProjData.budgetType,
-        deadline: newProjData.deadline,
-        daysLeft: newProjData.daysLeft,
-        urgency: newProjData.urgency,
-        deliverables: newProjData.deliverables
-      };
-      const savedResult = await apiCreateProject(newProject);
+      const savedResult = await apiCreateProject(newProjData);
       setProjects(prev => [savedResult, ...prev]);
       setIsPostModalOpen(false);
-      showToast('🎉 Project posted successfully on WorkPulse!');
+      showToast('🎉 Project posted successfully!');
     } catch (err) {
       showToast(err.message || 'Failed to post project', 'error');
     }
   };
 
   const handleSubmitProposal = async (proposalData) => {
-    if (!currentUser) {
+    if (!currentUser || currentUser.role !== 'freelancer') {
       setSelectedProject(null);
       setActiveTab('login');
       return;
     }
-    if (currentUser.role !== 'freelancer') {
-      setSelectedProject(null);
-      showToast('Only freelancers can submit proposals.', 'error');
-      return;
-    }
     try {
-      const payload = {
-        projectId: proposalData.projectId || proposalData.project,
-        coverLetter: proposalData.coverLetter,
-        bidAmount: Number(proposalData.bidAmount),
-        estimatedDays: Number(proposalData.estimatedDays || 7),
-        platformFee: Number(proposalData.platformFee || 0),
-        netAmount: Number(proposalData.netAmount || proposalData.bidAmount)
-      };
-      const savedResult = await apiSubmitProposal(payload);
+      const savedResult = await apiSubmitProposal(proposalData);
       setProposals(prev => [savedResult, ...prev]);
       setSelectedProject(null);
-      showToast('🚀 Proposal submitted successfully to employer!');
+      showToast('🚀 Proposal submitted successfully!');
     } catch (err) {
       showToast(err.message || 'Failed to submit proposal', 'error');
     }
@@ -279,7 +246,7 @@ export default function App() {
       await apiAcceptProposal(proposalId);
       setProposals(prev => prev.map(p => (p._id === proposalId || p.id === proposalId) ? { ...p, status: 'Accepted' } : p));
       await loadContracts();
-      showToast('🎉 Proposal accepted! Escrow contract initialized successfully.', 'success');
+      showToast('🎉 Proposal accepted! Escrow contract initialized.', 'success');
     } catch (err) {
       showToast('Contract Accepted!', 'success');
     }
@@ -290,9 +257,7 @@ export default function App() {
       await apiRejectProposal(proposalId);
       setProposals(prev => prev.map(p => (p._id === proposalId || p.id === proposalId) ? { ...p, status: 'Declined' } : p));
       showToast('Proposal declined.', 'info');
-    } catch (error) { 
-      showToast(error.message || 'Could not decline proposal', 'error'); 
-    }
+    } catch (error) { showToast('Could not decline', 'error'); }
   };
 
   const handleLoginSuccess = (userObj, msg) => {
@@ -329,7 +294,7 @@ export default function App() {
         onUpdateUser={(u) => setCurrentUser(u)}
       />
 
-      {/* Main Content Area with URL Sync */}
+      {/* Main Content Area */}
       <main style={{ flex: 1 }}>
         
         {/* 🌟 1. DEDICATED LOGIN PAGE (/login) */}
