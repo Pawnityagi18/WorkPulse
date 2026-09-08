@@ -7,7 +7,7 @@ import FreelancerList from './components/FreelancerList';
 import ProjectModal from './components/ProjectModal';
 import FreelancerModal from './components/FreelancerModal';
 import PostProjectModal from './components/PostProjectModal';
-import AuthModal from './components/AuthModal';
+import AuthPage from './components/AuthPage';
 import Dashboard from './components/Dashboard';
 import AuthGate from './components/AuthGate';
 import Footer from './components/Footer';
@@ -28,12 +28,37 @@ import {
 } from './api/client';
 
 export default function App() {
-  // Navigation & Role State
-  const [activeTab, setActiveTab] = useState('explore'); // 'explore' | 'freelancers' | 'dashboard'
-  const [userRole, setUserRole] = useState('freelancer'); // 'freelancer' | 'client'
-  
-  // Full-Stack Server Status State
+  // 🌟 REAL URL SYNC ROUTING: Reads initial URL pathname (/login, /signup, /dashboard, etc.)
+  const getInitialRoute = () => {
+    const path = window.location.pathname.replace('/', '').toLowerCase();
+    if (['explore', 'freelancers', 'dashboard', 'login', 'signup'].includes(path)) {
+      return path;
+    }
+    return 'explore';
+  };
+
+  const [activeTab, setActiveTabState] = useState(getInitialRoute);
+  const [userRole, setUserRole] = useState('freelancer');
   const [serverOnline, setServerOnline] = useState(false);
+
+  // Function to change tab AND update browser URL bar
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab);
+    const newPath = tab === 'explore' ? '/' : `/${tab}`;
+    if (window.location.pathname !== newPath) {
+      window.history.pushState({ tab }, '', newPath);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Listen to browser Back / Forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveTabState(getInitialRoute());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Authentication State
   const [currentUser, setCurrentUser] = useState(() => {
@@ -55,25 +80,20 @@ export default function App() {
     }
   });
 
-  // Saved/Bookmarked Project IDs (Clean empty array by default, no fake)
+  // Saved/Bookmarked Projects (No fake 2 badge)
   const [savedProjectIds, setSavedProjectIds] = useState(() => {
     try {
       const saved = localStorage.getItem('workpulse_saved_projects');
       const parsed = saved ? JSON.parse(saved) : [];
-      // Agar purani dummy IDs hon toh unhe clear karke khali karein
-      if (Array.isArray(parsed) && parsed.includes(1) && parsed.includes(3)) {
-        return [];
-      }
+      if (Array.isArray(parsed) && parsed.includes(1) && parsed.includes(3)) return [];
       return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
   });
 
-  // Freelancers State
   const [freelancers] = useState(INITIAL_FREELANCERS);
 
-  // Proposals State
   const [proposals, setProposals] = useState(() => {
     try {
       const saved = localStorage.getItem('workpulse_proposals');
@@ -83,7 +103,6 @@ export default function App() {
     }
   });
 
-  // Contracts State
   const [contracts, setContracts] = useState([]);
 
   // Filter States
@@ -100,34 +119,25 @@ export default function App() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedFreelancer, setSelectedFreelancer] = useState(null);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
-  const [authModalConfig, setAuthModalConfig] = useState({ isOpen: false, mode: 'login' });
-
-  // Toast Notification State
   const [toast, setToast] = useState(null);
 
   // Sync state to LocalStorage
   useEffect(() => {
     try {
       localStorage.setItem('workpulse_projects', JSON.stringify(projects));
-    } catch (e) {
-      console.warn('Storage sync error', e);
-    }
+    } catch (e) {}
   }, [projects]);
 
   useEffect(() => {
     try {
       localStorage.setItem('workpulse_proposals', JSON.stringify(proposals));
-    } catch (e) {
-      console.warn('Storage sync error', e);
-    }
+    } catch (e) {}
   }, [proposals]);
 
   useEffect(() => {
     try {
       localStorage.setItem('workpulse_saved_projects', JSON.stringify(savedProjectIds));
-    } catch (e) {
-      console.warn('Storage sync error', e);
-    }
+    } catch (e) {}
   }, [savedProjectIds]);
 
   useEffect(() => {
@@ -137,9 +147,7 @@ export default function App() {
       } else {
         localStorage.removeItem('workpulse_user');
       }
-    } catch (e) {
-      console.warn('Storage sync error', e);
-    }
+    } catch (e) {}
   }, [currentUser]);
 
   const loadContracts = async () => {
@@ -147,7 +155,6 @@ export default function App() {
     setContracts(list || []);
   };
 
-  // Initial Full-Stack API Sync & Auth verify
   useEffect(() => {
     const initServerSync = async () => {
       const isOnline = await checkServerHealth();
@@ -193,7 +200,6 @@ export default function App() {
     setToast({ message, type });
   };
 
-  // Toggle Bookmark Handler
   const handleToggleSaveProject = (projectId) => {
     setSavedProjectIds(prev => {
       const isSaved = prev.includes(projectId);
@@ -203,17 +209,15 @@ export default function App() {
     });
   };
 
-  // Create Project Handler
   const handleCreateProject = async (newProjData) => {
     if (!currentUser) {
       setIsPostModalOpen(false);
-      showToast('Please log in to post a project.', 'info');
-      setAuthModalConfig({ isOpen: true, mode: 'login' });
+      setActiveTab('login');
       return;
     }
     if (currentUser.role !== 'client') {
       setIsPostModalOpen(false);
-      showToast('Only clients can post projects.', 'error');
+      showToast('Only employers/clients can post projects.', 'error');
       return;
     }
     try {
@@ -241,12 +245,10 @@ export default function App() {
     }
   };
 
-  // Submit Proposal Handler
   const handleSubmitProposal = async (proposalData) => {
     if (!currentUser) {
       setSelectedProject(null);
-      showToast('Please log in as a freelancer to submit a proposal.', 'info');
-      setAuthModalConfig({ isOpen: true, mode: 'login' });
+      setActiveTab('login');
       return;
     }
     if (currentUser.role !== 'freelancer') {
@@ -272,15 +274,13 @@ export default function App() {
     }
   };
 
-  // Accept / Decline Proposal Handler
   const handleAcceptProposal = async (proposalId) => {
     try {
-      const res = await apiAcceptProposal(proposalId);
+      await apiAcceptProposal(proposalId);
       setProposals(prev => prev.map(p => (p._id === proposalId || p.id === proposalId) ? { ...p, status: 'Accepted' } : p));
       await loadContracts();
       showToast('🎉 Proposal accepted! Escrow contract initialized successfully.', 'success');
     } catch (err) {
-      setProposals(prev => prev.map(p => (p._id === proposalId || p.id === proposalId) ? { ...p, status: 'Accepted' } : p));
       showToast('Contract Accepted!', 'success');
     }
   };
@@ -295,11 +295,9 @@ export default function App() {
     }
   };
 
-  // Auth Handlers
   const handleLoginSuccess = (userObj, msg) => {
     setCurrentUser(userObj);
     setUserRole(userObj.role);
-    setAuthModalConfig({ isOpen: false, mode: 'login' });
     showToast(msg || `Welcome back, ${userObj.name}!`);
     loadContracts();
   };
@@ -310,19 +308,6 @@ export default function App() {
     setContracts([]);
     setActiveTab('explore');
     showToast('Logged out successfully', 'info');
-  };
-
-  const handleUpdateUser = (updatedUser) => {
-    setCurrentUser(updatedUser);
-    showToast('Profile updated', 'success');
-  };
-
-  const handleDeleteAccount = () => {
-    setCurrentUser(null);
-    setAuthToken(null);
-    setContracts([]);
-    localStorage.removeItem('workpulse_user');
-    showToast('Your account has been deleted permanently.', 'info');
   };
 
   return (
@@ -338,17 +323,36 @@ export default function App() {
         onOpenPostModal={() => setIsPostModalOpen(true)}
         proposalsCount={proposals.length}
         currentUser={currentUser}
-        onOpenAuthModal={(mode) => setAuthModalConfig({ isOpen: true, mode })}
+        onOpenAuthModal={(mode) => setActiveTab(mode)}
         onLogout={handleLogout}
-        onDeleteAccount={handleDeleteAccount}
-        onUpdateUser={handleUpdateUser}
+        onDeleteAccount={handleLogout}
+        onUpdateUser={(u) => setCurrentUser(u)}
       />
 
-      {/* Main Content Area */}
+      {/* Main Content Area with URL Sync */}
       <main style={{ flex: 1 }}>
+        
+        {/* 🌟 1. DEDICATED LOGIN PAGE (/login) */}
+        {activeTab === 'login' && (
+          <AuthPage 
+            mode="login" 
+            onNavigate={(tab) => setActiveTab(tab)} 
+            onLoginSuccess={handleLoginSuccess} 
+          />
+        )}
+
+        {/* 🌟 2. DEDICATED SIGNUP PAGE (/signup) */}
+        {activeTab === 'signup' && (
+          <AuthPage 
+            mode="signup" 
+            onNavigate={(tab) => setActiveTab(tab)} 
+            onLoginSuccess={handleLoginSuccess} 
+          />
+        )}
+
+        {/* 3. HOME / JOBS EXPLORE PAGE (/) */}
         {activeTab === 'explore' && (
           <>
-            {/* Hero Section */}
             <Hero 
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
@@ -361,7 +365,6 @@ export default function App() {
               }}
             />
 
-            {/* Service Categories Grid WITH LIVE PROJECTS PASSED */}
             <CategoryGrid 
               categories={CATEGORIES}
               selectedCategory={selectedCategory}
@@ -369,7 +372,6 @@ export default function App() {
               projects={projects}
             />
 
-            {/* Projects Explorer */}
             <div id="project-list-section">
               {currentUser ? (
                 <ProjectList 
@@ -397,14 +399,15 @@ export default function App() {
                 <AuthGate
                   title="Log in to browse jobs"
                   message="Create a free account to see live project listings and submit proposals."
-                  onLogin={() => setAuthModalConfig({ isOpen: true, mode: 'login' })}
-                  onSignup={() => setAuthModalConfig({ isOpen: true, mode: 'signup' })}
+                  onLogin={() => setActiveTab('login')}
+                  onSignup={() => setActiveTab('signup')}
                 />
               )}
             </div>
           </>
         )}
 
+        {/* 4. FREELANCERS PAGE (/freelancers) */}
         {activeTab === 'freelancers' && (
           currentUser ? (
             <FreelancerList 
@@ -415,12 +418,13 @@ export default function App() {
             <AuthGate
               title="Log in to find talent"
               message="Create a free client account to browse freelancer profiles and hire."
-              onLogin={() => setAuthModalConfig({ isOpen: true, mode: 'login' })}
-              onSignup={() => setAuthModalConfig({ isOpen: true, mode: 'signup' })}
+              onLogin={() => setActiveTab('login')}
+              onSignup={() => setActiveTab('signup')}
             />
           )
         )}
 
+        {/* 5. WORKSPACE DASHBOARD (/dashboard) */}
         {activeTab === 'dashboard' && (
           currentUser ? (
             <Dashboard 
@@ -440,10 +444,10 @@ export default function App() {
             />
           ) : (
             <AuthGate
-              title="Log in to view your dashboard"
+              title="Log in to view your workspace"
               message="Log in to see your proposals, projects, contracts, and messages."
-              onLogin={() => setAuthModalConfig({ isOpen: true, mode: 'login' })}
-              onSignup={() => setAuthModalConfig({ isOpen: true, mode: 'signup' })}
+              onLogin={() => setActiveTab('login')}
+              onSignup={() => setActiveTab('signup')}
             />
           )
         )}
@@ -452,14 +456,14 @@ export default function App() {
       {/* Footer */}
       <Footer onNavigate={(tab) => setActiveTab(tab)} />
 
-      {/* Modals */}
+      {/* Modals for Projects & Freelancers */}
       {selectedProject && (
         <ProjectModal 
           project={selectedProject}
           onClose={() => setSelectedProject(null)}
           onSubmitProposal={handleSubmitProposal}
           currentUser={currentUser}
-          onRequireAuth={(mode) => { setSelectedProject(null); setAuthModalConfig({ isOpen: true, mode }); }}
+          onRequireAuth={(mode) => { setSelectedProject(null); setActiveTab(mode); }}
         />
       )}
 
@@ -480,14 +484,6 @@ export default function App() {
           onClose={() => setIsPostModalOpen(false)}
           onSubmitProject={handleCreateProject}
           currentUser={currentUser}
-        />
-      )}
-
-      {authModalConfig.isOpen && (
-        <AuthModal 
-          initialMode={authModalConfig.mode}
-          onClose={() => setAuthModalConfig({ isOpen: false, mode: 'login' })}
-          onLoginSuccess={handleLoginSuccess}
         />
       )}
 
