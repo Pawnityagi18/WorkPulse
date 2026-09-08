@@ -6,7 +6,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import connectDB from './config/db.js';
 import { generalLimiter } from './middleware/rateLimiter.js';
-
 import authRoutes from './routes/authRoutes.js';
 import projectRoutes from './routes/projectRoutes.js';
 import proposalRoutes from './routes/proposalRoutes.js';
@@ -24,25 +23,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Enable proxy trust so Vercel & Render proxies pass real client IP
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'cross-origin' } // allow uploaded images to be loaded from a different frontend origin
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 
-// Restrict CORS to the configured frontend in production; allow any origin in local dev
-// (when FRONTEND_URL isn't set) so the existing dev workflow doesn't break.
+// Restrict CORS to configured frontend in production
 const allowedOrigin = process.env.FRONTEND_URL;
 app.use(cors(allowedOrigin ? { origin: allowedOrigin, credentials: true } : {}));
 
+// General rate limiter
 app.use('/api/', generalLimiter);
 
-// IMPORTANT: the Razorpay webhook needs the raw request body to verify the signature,
-// so it must be registered BEFORE express.json() and must not be re-parsed as JSON.
+// IMPORTANT: Razorpay webhook
 app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), handleRazorpayWebhook);
 
 app.use(express.json());
 
-// Serve uploaded files (avatars, etc.)
+// Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Connect Database
