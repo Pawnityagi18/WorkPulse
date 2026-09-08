@@ -12,7 +12,6 @@ import Dashboard from './components/Dashboard';
 import AuthGate from './components/AuthGate';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
-
 import { INITIAL_CATEGORIES as CATEGORIES, INITIAL_PROJECTS, INITIAL_FREELANCERS, INITIAL_PROPOSALS } from './data/mockData';
 import { 
   apiFetchProjects, 
@@ -56,13 +55,18 @@ export default function App() {
     }
   });
 
-  // Saved/Bookmarked Project IDs
+  // Saved/Bookmarked Project IDs (Clean empty array by default, no fake)
   const [savedProjectIds, setSavedProjectIds] = useState(() => {
     try {
       const saved = localStorage.getItem('workpulse_saved_projects');
-      return saved ? JSON.parse(saved) : [1, 3];
+      const parsed = saved ? JSON.parse(saved) : [];
+      // Agar purani dummy IDs hon toh unhe clear karke khali karein
+      if (Array.isArray(parsed) && parsed.includes(1) && parsed.includes(3)) {
+        return [];
+      }
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
-      return [1, 3];
+      return [];
     }
   });
 
@@ -140,7 +144,7 @@ export default function App() {
 
   const loadContracts = async () => {
     const list = await apiFetchContracts();
-    setContracts(list);
+    setContracts(list || []);
   };
 
   // Initial Full-Stack API Sync & Auth verify
@@ -148,26 +152,20 @@ export default function App() {
     const initServerSync = async () => {
       const isOnline = await checkServerHealth();
       setServerOnline(isOnline);
-
       if (isOnline) {
-        // Verify logged in user token
         const me = await apiFetchMe();
         if (me) {
           setCurrentUser(me);
           setUserRole(me.role);
         }
-
         const remoteProjects = await apiFetchProjects(INITIAL_PROJECTS);
         if (remoteProjects && remoteProjects.length > 0) setProjects(remoteProjects);
-
         const remoteProposals = await apiFetchProposals(INITIAL_PROPOSALS);
         if (remoteProposals && remoteProposals.length > 0) setProposals(remoteProposals);
-
         const remoteContracts = await apiFetchContracts();
-        setContracts(remoteContracts);
+        setContracts(remoteContracts || []);
       }
     };
-
     initServerSync();
   }, []);
 
@@ -183,7 +181,7 @@ export default function App() {
       setProjectsLoading(true); setProjectsError('');
       try {
         const result = await apiSearchProjects({ search: searchQuery, category: selectedCategory, maxBudget: budgetRange, urgency: urgencyFilter, sort: sortBy, page: 1, limit: 12 });
-        setProjects(result.projects);
+        setProjects(result.projects || []);
         setProjectSearchMeta({ total: result.total, page: result.page, pages: result.pages });
       } catch (error) { setProjectsError(error.message); }
       finally { setProjectsLoading(false); }
@@ -234,7 +232,6 @@ export default function App() {
         urgency: newProjData.urgency,
         deliverables: newProjData.deliverables
       };
-
       const savedResult = await apiCreateProject(newProject);
       setProjects(prev => [savedResult, ...prev]);
       setIsPostModalOpen(false);
@@ -266,10 +263,8 @@ export default function App() {
         platformFee: Number(proposalData.platformFee || 0),
         netAmount: Number(proposalData.netAmount || proposalData.bidAmount)
       };
-
       const savedResult = await apiSubmitProposal(payload);
       setProposals(prev => [savedResult, ...prev]);
-
       setSelectedProject(null);
       showToast('🚀 Proposal submitted successfully to employer!');
     } catch (err) {
@@ -285,7 +280,6 @@ export default function App() {
       await loadContracts();
       showToast('🎉 Proposal accepted! Escrow contract initialized successfully.', 'success');
     } catch (err) {
-      // Fallback local update
       setProposals(prev => prev.map(p => (p._id === proposalId || p.id === proposalId) ? { ...p, status: 'Accepted' } : p));
       showToast('Contract Accepted!', 'success');
     }
@@ -296,7 +290,9 @@ export default function App() {
       await apiRejectProposal(proposalId);
       setProposals(prev => prev.map(p => (p._id === proposalId || p.id === proposalId) ? { ...p, status: 'Declined' } : p));
       showToast('Proposal declined.', 'info');
-    } catch (error) { showToast(error.message || 'Could not decline proposal', 'error'); }
+    } catch (error) { 
+      showToast(error.message || 'Could not decline proposal', 'error'); 
+    }
   };
 
   // Auth Handlers
@@ -350,7 +346,6 @@ export default function App() {
 
       {/* Main Content Area */}
       <main style={{ flex: 1 }}>
-
         {activeTab === 'explore' && (
           <>
             {/* Hero Section */}
@@ -366,14 +361,15 @@ export default function App() {
               }}
             />
 
-            {/* Service Categories Grid */}
+            {/* Service Categories Grid WITH LIVE PROJECTS PASSED */}
             <CategoryGrid 
               categories={CATEGORIES}
               selectedCategory={selectedCategory}
               onSelectCategory={setSelectedCategory}
+              projects={projects}
             />
 
-            {/* Projects Explorer with Left Filter Sidebar — gated: browsing the live job list requires an account */}
+            {/* Projects Explorer */}
             <div id="project-list-section">
               {currentUser ? (
                 <ProjectList 
@@ -395,6 +391,7 @@ export default function App() {
                   loading={projectsLoading}
                   error={projectsError}
                   total={serverOnline ? projectSearchMeta.total : undefined}
+                  currentUser={currentUser}
                 />
               ) : (
                 <AuthGate
@@ -450,7 +447,6 @@ export default function App() {
             />
           )
         )}
-
       </main>
 
       {/* Footer */}
@@ -503,7 +499,6 @@ export default function App() {
           onClose={() => setToast(null)} 
         />
       )}
-
     </div>
   );
 }
