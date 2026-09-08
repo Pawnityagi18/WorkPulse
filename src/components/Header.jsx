@@ -13,8 +13,7 @@ import {
   Menu, 
   X, 
   Bell, 
-  Camera,
-  Briefcase
+  Camera 
 } from 'lucide-react';
 import { 
   apiFetchNotifications, 
@@ -116,69 +115,53 @@ export default function Header({
       position: 'sticky',
       top: 0,
       zIndex: 900,
-      backgroundColor: 'rgba(15, 23, 42, 0.95)',
-      backdropFilter: 'blur(16px)',
-      borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)'
+      backgroundColor: 'var(--bg-glass-heavy)',
+      backdropFilter: 'blur(12px)',
+      borderBottom: '1px solid var(--border-subtle)',
+      boxShadow: 'var(--shadow-sm)'
     }}>
       <div className="container" style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        height: '72px'
+        height: '76px'
       }}>
         
-        {/* 1. BRAND LOGO WITH SHARP CONTRAST */}
+        {/* Brand Logo */}
         <div 
           onClick={() => handleNavClick('explore')} 
           style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}
         >
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '2px',
-            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.35)'
-          }}>
-            <img 
-              src="/logo.jpg" 
-              alt="WorkPulse"
-              style={{
-                width: '100%',
-                height: '100%',
-                borderRadius: '10px',
-                objectFit: 'cover',
-                background: '#0f172a'
-              }}
-              onError={(e) => {
-                // Fallback icon if logo image not found
-                e.target.style.display = 'none';
-              }}
-            />
-          </div>
-
+          <img 
+            src="/logo.jpg" 
+            alt="WorkPulse Logo"
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '12px',
+              objectFit: 'cover',
+              boxShadow: 'var(--shadow-primary)',
+              border: '1.5px solid var(--border-teal)'
+            }}
+          />
           <div>
             <span style={{
               fontFamily: 'var(--font-heading)',
-              fontSize: '1.4rem',
-              fontWeight: 900,
-              color: '#FFFFFF',
+              fontSize: '1.45rem',
+              fontWeight: 800,
+              color: 'var(--primary)',
               letterSpacing: '-0.02em',
               display: 'block'
             }}>
-              Work<span style={{ color: '#6366f1' }}>Pulse</span>
+              WorkPulse
             </span>
             <span style={{
               fontSize: '0.65rem',
-              fontWeight: 700,
-              color: '#94a3b8',
+              fontWeight: 800,
+              color: 'var(--secondary)',
               letterSpacing: '0.08em',
               display: 'block',
-              marginTop: '-3px',
+              marginTop: '-4px',
               textTransform: 'uppercase'
             }}>
               Freelance Marketplace
@@ -186,27 +169,22 @@ export default function Header({
           </div>
         </div>
 
-        {/* 2. DESKTOP NAVIGATION LINKS */}
+        {/* Desktop Navigation Links */}
         <nav style={{
           display: 'none',
           alignItems: 'center',
-          gap: '0.4rem'
+          gap: '0.5rem'
         }} className="desktop-only-nav">
           <button 
             onClick={() => handleNavClick('explore')}
+            className={`btn ${activeTab === 'explore' ? 'btn-secondary' : ''}`}
             style={{ 
+              color: activeTab === 'explore' ? 'var(--primary)' : 'var(--text-muted)',
+              background: activeTab === 'explore' ? 'var(--primary-light)' : 'transparent',
+              border: 'none',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.5rem 0.9rem',
-              borderRadius: '10px',
-              border: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              color: activeTab === 'explore' ? '#FFFFFF' : '#94a3b8',
-              background: activeTab === 'explore' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-              transition: 'all 0.15s ease'
+              gap: '0.4rem'
             }}
           >
             <Search size={16} /> Browse Jobs
@@ -214,19 +192,14 @@ export default function Header({
           
           <button 
             onClick={() => handleNavClick('freelancers')}
+            className={`btn ${activeTab === 'freelancers' ? 'btn-secondary' : ''}`}
             style={{ 
+              color: activeTab === 'freelancers' ? 'var(--primary)' : 'var(--text-muted)',
+              background: activeTab === 'freelancers' ? 'var(--primary-light)' : 'transparent',
+              border: 'none',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.5rem 0.9rem',
-              borderRadius: '10px',
-              border: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              color: activeTab === 'freelancers' ? '#FFFFFF' : '#94a3b8',
-              background: activeTab === 'freelancers' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-              transition: 'all 0.15s ease'
+              gap: '0.4rem'
             }}
           >
             <UserCheck size={16} /> Find Talent
@@ -236,67 +209,62 @@ export default function Header({
           {isLoggedIn && (
             <button 
               onClick={() => handleNavClick('dashboard')}
+              className={`btn ${activeTab === 'dashboard' ? 'btn-secondary' : ''}`}
               style={{ 
+                color: activeTab === 'dashboard' ? 'var(--primary)' : 'var(--text-muted)',
+                background: activeTab === 'dashboard' ? 'var(--primary-light)' : 'transparent',
+                border: 'none',
+                position: 'relative',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.4rem',
-                padding: '0.5rem 0.9rem',
-                borderRadius: '10px',
-                border: 'none',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                color: activeTab === 'dashboard' ? '#FFFFFF' : '#94a3b8',
-                background: activeTab === 'dashboard' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                position: 'relative',
-                transition: 'all 0.15s ease'
+                gap: '0.4rem'
               }}
             >
               <LayoutDashboard size={16} /> Workspace
               {proposalsCount > 0 && (
                 <span style={{
                   position: 'absolute',
-                  top: '6px',
-                  right: '6px',
+                  top: '4px',
+                  right: '4px',
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  backgroundColor: '#10b981'
+                  backgroundColor: 'var(--accent-emerald)'
                 }} />
               )}
             </button>
           )}
         </nav>
 
-        {/* 3. DESKTOP ACTIONS: AUTH-AWARE */}
+        {/* Desktop Actions */}
         <div style={{ display: 'none', alignItems: 'center', gap: '0.85rem' }} className="desktop-only-actions">
           
           {/* LOGGED-IN VIEW */}
           {isLoggedIn ? (
             <>
-              {/* BOOKMARKS: Only visible when logged in */}
+              {/* SAVED ITEMS: Only when logged in */}
               <div 
                 onClick={() => handleNavClick('explore')}
                 style={{
                   position: 'relative',
                   cursor: 'pointer',
                   padding: '0.5rem',
-                  color: '#94a3b8',
+                  color: 'var(--text-muted)',
                   borderRadius: '50%',
                   transition: 'color 0.2s ease'
                 }}
-                title="Saved Jobs"
+                title="Bookmarked Projects"
               >
                 <Bookmark size={20} />
                 {savedCount > 0 && (
                   <span style={{
                     position: 'absolute',
-                    top: '2px',
-                    right: '2px',
-                    backgroundColor: '#f59e0b',
+                    top: '0',
+                    right: '0',
+                    backgroundColor: 'var(--accent-sun)',
                     color: '#FFF',
                     fontSize: '0.65rem',
-                    fontWeight: 800,
+                    fontWeight: 700,
                     width: '16px',
                     height: '16px',
                     borderRadius: '50%',
@@ -313,18 +281,18 @@ export default function Header({
               <div style={{ position: 'relative' }}>
                 <div
                   onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
-                  style={{ position: 'relative', cursor: 'pointer', padding: '0.5rem', color: '#94a3b8' }}
+                  style={{ position: 'relative', cursor: 'pointer', padding: '0.5rem' }}
                 >
                   <Bell size={20} />
                   {unreadCount > 0 && (
                     <span style={{
                       position: 'absolute',
-                      top: '2px',
-                      right: '2px',
-                      backgroundColor: '#ef4444',
+                      top: '0',
+                      right: '0',
+                      backgroundColor: 'var(--accent-rose, #f43f5e)',
                       color: '#FFF',
                       fontSize: '0.65rem',
-                      fontWeight: 800,
+                      fontWeight: 700,
                       width: '16px',
                       height: '16px',
                       borderRadius: '50%',
@@ -337,40 +305,39 @@ export default function Header({
                   )}
                 </div>
 
-                {/* Notifications Dropdown */}
                 {notifDropdownOpen && (
                   <div style={{
                     position: 'absolute',
-                    top: '115%',
+                    top: '110%',
                     right: 0,
                     width: '320px',
                     maxHeight: '400px',
                     overflowY: 'auto',
-                    background: '#111827',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    borderRadius: '16px',
-                    boxShadow: '0 16px 32px rgba(0,0,0,0.5)',
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-lg)',
+                    boxShadow: 'var(--shadow-lg)',
                     zIndex: 1000
                   }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#FFF' }}>Notifications</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Notifications</span>
                       {unreadCount > 0 && (
-                        <button onClick={handleMarkAllRead} style={{ background: 'none', border: 'none', color: '#6366f1', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>
+                        <button onClick={handleMarkAllRead} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>
                           Mark all read
                         </button>
                       )}
                     </div>
                     {notifications.length === 0 ? (
-                      <div style={{ padding: '2rem 1rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>No notifications yet</div>
+                      <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>No notifications yet</div>
                     ) : (
                       notifications.map((n) => (
                         <div
                           key={n._id}
                           onClick={() => handleNotifClick(n)}
-                          style={{ padding: '0.75rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', background: n.read ? 'transparent' : 'rgba(99,102,241,0.08)' }}
+                          style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer', background: n.read ? 'transparent' : 'var(--bg-input)' }}
                         >
-                          <div style={{ fontSize: '0.82rem', color: '#e2e8f0' }}>{n.message}</div>
-                          <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.2rem' }}>{new Date(n.createdAt).toLocaleString()}</div>
+                          <div style={{ fontSize: '0.82rem', color: 'var(--text-main)' }}>{n.message}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '0.2rem' }}>{new Date(n.createdAt).toLocaleString()}</div>
                         </div>
                       ))
                     )}
@@ -383,7 +350,7 @@ export default function Header({
                 <button 
                   onClick={onOpenPostModal}
                   className="btn btn-primary btn-sm"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 1rem', borderRadius: '10px', fontWeight: 700 }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                 >
                   <PlusCircle size={16} /> Post Job
                 </button>
@@ -399,50 +366,50 @@ export default function Header({
                     gap: '0.5rem',
                     cursor: 'pointer',
                     padding: '0.35rem 0.65rem',
-                    borderRadius: '20px',
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.1)'
+                    borderRadius: 'var(--radius-full)',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-medium)'
                   }}
                 >
                   <img 
                     src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'} 
                     alt={currentUser.name}
-                    style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }}
+                    style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }}
                   />
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFF' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
                     {currentUser.name.split(' ')[0]}
                   </span>
-                  <ChevronDown size={14} color="#94a3b8" />
+                  <ChevronDown size={14} color="var(--text-muted)" />
                 </div>
 
                 {profileDropdownOpen && (
                   <div style={{
                     position: 'absolute',
-                    top: '120%',
+                    top: '110%',
                     right: 0,
-                    width: '240px',
-                    background: '#111827',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    borderRadius: '16px',
+                    width: '230px',
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-lg)',
                     padding: '0.75rem',
-                    boxShadow: '0 16px 32px rgba(0,0,0,0.5)',
+                    boxShadow: 'var(--shadow-lg)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '0.5rem',
                     zIndex: 1000
                   }}>
-                    <div style={{ paddingBottom: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#FFF' }}>{currentUser.name}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{currentUser.email}</div>
-                      <span style={{ display: 'inline-block', marginTop: '0.4rem', padding: '2px 8px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 700, background: isClient ? 'rgba(16, 185, 129, 0.2)' : 'rgba(99, 102, 241, 0.2)', color: isClient ? '#34d399' : '#a5b4fc' }}>
-                        {isClient ? '💼 Employer Mode' : '💻 Freelancer Mode'}
+                    <div style={{ paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{currentUser.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{currentUser.email}</div>
+                      <span className="badge badge-category" style={{ marginTop: '0.35rem' }}>
+                        Mode: {isClient ? 'Employer' : 'Freelancer'}
                       </span>
                     </div>
 
                     <button 
                       onClick={() => { handleNavClick('dashboard'); setProfileDropdownOpen(false); }}
                       className="btn btn-secondary btn-sm"
-                      style={{ justifyContent: 'flex-start', color: '#FFF' }}
+                      style={{ justifyContent: 'flex-start' }}
                     >
                       <LayoutDashboard size={14} /> My Workspace
                     </button>
@@ -451,7 +418,7 @@ export default function Header({
                       onClick={() => avatarInputRef.current?.click()}
                       disabled={uploadingAvatar}
                       className="btn btn-secondary btn-sm"
-                      style={{ justifyContent: 'flex-start', color: '#FFF' }}
+                      style={{ justifyContent: 'flex-start' }}
                     >
                       <Camera size={14} /> {uploadingAvatar ? 'Uploading…' : 'Change Photo'}
                     </button>
@@ -466,7 +433,7 @@ export default function Header({
                     <button 
                       onClick={() => { onLogout(); setProfileDropdownOpen(false); }}
                       className="btn btn-secondary btn-sm"
-                      style={{ justifyContent: 'flex-start', color: '#FFF' }}
+                      style={{ justifyContent: 'flex-start' }}
                     >
                       <LogOut size={14} /> Log Out
                     </button>
@@ -474,7 +441,7 @@ export default function Header({
                     <button 
                       onClick={handleDeleteAccountClick}
                       className="btn btn-secondary btn-sm"
-                      style={{ justifyContent: 'flex-start', color: '#f87171', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)' }}
+                      style={{ justifyContent: 'flex-start', color: 'var(--accent-rose)', border: '1px solid var(--accent-rose-light)', background: 'var(--accent-rose-light)' }}
                     >
                       <Trash2 size={14} /> Delete Account
                     </button>
@@ -483,41 +450,32 @@ export default function Header({
               </div>
             </>
           ) : (
-            /* UNAUTHENTICATED VIEW: Clean Log In & Sign Up buttons only */
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            /* UNAUTHENTICATED VIEW */
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <button 
-                onClick={() => onOpenAuthModal('login')}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#94a3b8',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  padding: '0.5rem 0.85rem'
-                }}
+                onClick={() => handleNavClick('login')}
+                className="btn btn-secondary btn-sm"
               >
-                Log In
+                <LogIn size={15} /> Log In
               </button>
               <button 
-                onClick={() => onOpenAuthModal('signup')}
+                onClick={() => handleNavClick('signup')}
                 className="btn btn-primary btn-sm"
-                style={{ padding: '0.5rem 1.15rem', borderRadius: '10px', fontWeight: 700 }}
               >
-                Sign Up
+                <UserPlus size={15} /> Sign Up
               </button>
             </div>
           )}
         </div>
 
-        {/* 4. MOBILE HAMBURGER TOGGLE BUTTON */}
+        {/* MOBILE HAMBURGER TOGGLE BUTTON */}
         <button 
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           style={{
             display: 'none',
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: '#FFFFFF',
+            background: 'var(--bg-input)',
+            border: '1px solid var(--border-subtle)',
+            color: 'var(--text-main)',
             width: '40px',
             height: '40px',
             borderRadius: '10px',
@@ -532,11 +490,11 @@ export default function Header({
         </button>
       </div>
 
-      {/* 5. MOBILE SLIDE-DOWN DRAWER MENU */}
+      {/* MOBILE SLIDE-DOWN DRAWER MENU */}
       {mobileMenuOpen && (
         <div style={{
-          background: '#0f172a',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
+          background: 'var(--bg-card)',
+          borderBottom: '1px solid var(--border-subtle)',
           padding: '1.25rem',
           display: 'flex',
           flexDirection: 'column',
@@ -544,14 +502,14 @@ export default function Header({
         }}>
           <button 
             onClick={() => handleNavClick('explore')}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'explore' ? 'rgba(99,102,241,0.15)' : 'transparent', color: activeTab === 'explore' ? '#6366f1' : '#cbd5e1', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'explore' ? 'var(--primary-light)' : 'transparent', color: activeTab === 'explore' ? 'var(--primary)' : 'var(--text-muted)', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
           >
             <Search size={18} /> Browse Jobs
           </button>
 
           <button 
             onClick={() => handleNavClick('freelancers')}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'freelancers' ? 'rgba(99,102,241,0.15)' : 'transparent', color: activeTab === 'freelancers' ? '#6366f1' : '#cbd5e1', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'freelancers' ? 'var(--primary-light)' : 'transparent', color: activeTab === 'freelancers' ? 'var(--primary)' : 'var(--text-muted)', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
           >
             <UserCheck size={18} /> Find Talent
           </button>
@@ -560,7 +518,7 @@ export default function Header({
             <>
               <button 
                 onClick={() => handleNavClick('dashboard')}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'dashboard' ? 'rgba(99,102,241,0.15)' : 'transparent', color: activeTab === 'dashboard' ? '#6366f1' : '#cbd5e1', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'dashboard' ? 'var(--primary-light)' : 'transparent', color: activeTab === 'dashboard' ? 'var(--primary)' : 'var(--text-muted)', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
               >
                 <LayoutDashboard size={18} /> My Workspace
               </button>
@@ -575,24 +533,24 @@ export default function Header({
                 </button>
               )}
 
-              <div style={{ paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
-                <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Logged in as <strong>{currentUser.name}</strong></span>
-                <button onClick={() => { onLogout(); setMobileMenuOpen(false); }} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}>
+              <div style={{ paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Logged in as <strong>{currentUser.name}</strong></span>
+                <button onClick={() => { onLogout(); setMobileMenuOpen(false); }} style={{ background: 'none', border: 'none', color: 'var(--accent-rose)', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}>
                   Log Out
                 </button>
               </div>
             </>
           ) : (
-            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
               <button 
-                onClick={() => { onOpenAuthModal('login'); setMobileMenuOpen(false); }}
+                onClick={() => handleNavClick('login')}
                 className="btn btn-secondary" 
                 style={{ flex: 1, justifyContent: 'center' }}
               >
                 Log In
               </button>
               <button 
-                onClick={() => { onOpenAuthModal('signup'); setMobileMenuOpen(false); }}
+                onClick={() => handleNavClick('signup')}
                 className="btn btn-primary" 
                 style={{ flex: 1, justifyContent: 'center' }}
               >
@@ -603,7 +561,7 @@ export default function Header({
         </div>
       )}
 
-      {/* 6. RESPONSIVE CSS INJECTION FOR MOBILE/DESKTOP TOGGLE */}
+      {/* RESPONSIVE CSS INJECTION */}
       <style>{`
         @media (min-width: 768px) {
           .desktop-only-nav {
