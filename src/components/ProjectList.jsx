@@ -35,7 +35,8 @@ export default function ProjectList({
   onDeleteProject,
   loading = false,
   error = '',
-  total
+  total,
+  currentUser
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -77,9 +78,21 @@ export default function ProjectList({
     return projects.filter(p => p.urgency === urgencyId).length;
   };
 
-  // 4. Delete Project Handler
+  // 4. Delete Project Handler with DEMO GUARD
   const handleDelete = async (e, projectId) => {
     e.stopPropagation();
+
+    // DEMO USER GUARD: LocalStorage aur Prop dono se check karega
+    const user = currentUser || JSON.parse(localStorage.getItem('user') || '{}');
+    const isDemo = user?.isDemo || 
+      (user?.email && (user.email.toLowerCase().includes('demo') || user.email.toLowerCase().includes('elena.rostova'))) ||
+      (user?.name && user.name.toLowerCase().includes('demo'));
+
+    if (isDemo) {
+      alert('🛡️ Demo Mode: Deleting jobs is disabled in demo preview to preserve showcase projects. Please create your own free account to manage your own jobs!');
+      return;
+    }
+
     if (!window.confirm('Are you sure you want to delete this job posting?')) return;
 
     if (onDeleteProject) {
@@ -411,7 +424,7 @@ export default function ProjectList({
                           ))}
                         </div>
 
-                        {/* Card Bottom Meta (Client info + Budget + Proposal CTA) */}
+                        {/* Card Bottom Meta */}
                         <div style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -481,7 +494,6 @@ export default function ProjectList({
                     padding: '1rem',
                     flexWrap: 'wrap'
                   }}>
-                    {/* Previous Button */}
                     <button
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
@@ -497,7 +509,6 @@ export default function ProjectList({
                       <ChevronLeft size={16} /> Prev
                     </button>
 
-                    {/* Page Numbers */}
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
                       <button
                         key={pageNum}
@@ -519,7 +530,6 @@ export default function ProjectList({
                       </button>
                     ))}
 
-                    {/* Next Button */}
                     <button
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
