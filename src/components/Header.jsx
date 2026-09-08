@@ -45,7 +45,7 @@ export default function Header({
   const avatarInputRef = useRef(null);
 
   const isLoggedIn = Boolean(currentUser);
-  const role = currentUser?.role; // 'client' | 'freelancer' | undefined
+  const role = currentUser?.role;
   const isClient = isLoggedIn && role === 'client';
 
   useEffect(() => {
@@ -111,16 +111,7 @@ export default function Header({
   };
 
   return (
-    <header className="main-navbar-header" style={{
-      position: 'sticky',
-      top: 0,
-      zIndex: 900,
-      backgroundColor: 'rgba(255, 255, 255, 0.85)',
-      backdropFilter: 'blur(16px)',
-      WebkitBackdropFilter: 'blur(16px)',
-      borderBottom: '1px solid rgba(226, 232, 240, 0.8)',
-      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)'
-    }}>
+    <header className="workpulse-pure-glass-nav">
       <div className="container" style={{
         display: 'flex',
         alignItems: 'center',
@@ -142,7 +133,7 @@ export default function Header({
             alignItems: 'center',
             justifyContent: 'center',
             padding: '2px',
-            boxShadow: '0 4px 10px rgba(13, 148, 136, 0.2)'
+            boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)'
           }}>
             <img 
               src="/logo.jpg" 
@@ -162,7 +153,7 @@ export default function Header({
             <span style={{
               fontFamily: 'var(--font-heading)',
               fontSize: '1.4rem',
-              fontWeight: 800,
+              fontWeight: 900,
               color: 'var(--primary, #0d9488)',
               letterSpacing: '-0.02em',
               display: 'block'
@@ -172,7 +163,7 @@ export default function Header({
             <span style={{
               fontSize: '0.65rem',
               fontWeight: 800,
-              color: 'var(--text-muted, #64748b)',
+              color: '#64748b',
               letterSpacing: '0.08em',
               display: 'block',
               marginTop: '-4px',
@@ -187,19 +178,25 @@ export default function Header({
         <nav style={{
           display: 'none',
           alignItems: 'center',
-          gap: '0.4rem'
+          gap: '0.5rem'
         }} className="desktop-only-nav">
           <button 
             onClick={() => handleNavClick('explore')}
-            className={`btn ${activeTab === 'explore' ? 'btn-secondary' : ''}`}
+            className="glass-nav-link"
             style={{ 
-              color: activeTab === 'explore' ? 'var(--primary, #0d9488)' : '#334155',
-              background: activeTab === 'explore' ? 'rgba(13, 148, 136, 0.1)' : 'transparent',
-              border: 'none',
+              color: activeTab === 'explore' ? 'var(--primary, #0d9488)' : '#1e293b',
+              background: activeTab === 'explore' ? 'rgba(13, 148, 136, 0.12)' : 'rgba(255, 255, 255, 0.25)',
+              border: activeTab === 'explore' ? '1px solid rgba(13, 148, 136, 0.3)' : '1px solid rgba(255, 255, 255, 0.35)',
               display: 'flex',
               alignItems: 'center',
               gap: '0.4rem',
-              fontWeight: 600
+              padding: '0.45rem 0.95rem',
+              borderRadius: '12px',
+              fontWeight: 700,
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+              backdropFilter: 'blur(8px)',
+              transition: 'all 0.2s ease'
             }}
           >
             <Search size={16} /> Browse Jobs
@@ -207,15 +204,21 @@ export default function Header({
           
           <button 
             onClick={() => handleNavClick('freelancers')}
-            className={`btn ${activeTab === 'freelancers' ? 'btn-secondary' : ''}`}
+            className="glass-nav-link"
             style={{ 
-              color: activeTab === 'freelancers' ? 'var(--primary, #0d9488)' : '#334155',
-              background: activeTab === 'freelancers' ? 'rgba(13, 148, 136, 0.1)' : 'transparent',
-              border: 'none',
+              color: activeTab === 'freelancers' ? 'var(--primary, #0d9488)' : '#1e293b',
+              background: activeTab === 'freelancers' ? 'rgba(13, 148, 136, 0.12)' : 'rgba(255, 255, 255, 0.25)',
+              border: activeTab === 'freelancers' ? '1px solid rgba(13, 148, 136, 0.3)' : '1px solid rgba(255, 255, 255, 0.35)',
               display: 'flex',
               alignItems: 'center',
               gap: '0.4rem',
-              fontWeight: 600
+              padding: '0.45rem 0.95rem',
+              borderRadius: '12px',
+              fontWeight: 700,
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+              backdropFilter: 'blur(8px)',
+              transition: 'all 0.2s ease'
             }}
           >
             <UserCheck size={16} /> Find Talent
@@ -225,28 +228,34 @@ export default function Header({
           {isLoggedIn && (
             <button 
               onClick={() => handleNavClick('dashboard')}
-              className={`btn ${activeTab === 'dashboard' ? 'btn-secondary' : ''}`}
+              className="glass-nav-link"
               style={{ 
-                color: activeTab === 'dashboard' ? 'var(--primary, #0d9488)' : '#334155',
-                background: activeTab === 'dashboard' ? 'rgba(13, 148, 136, 0.1)' : 'transparent',
-                border: 'none',
-                position: 'relative',
+                color: activeTab === 'dashboard' ? 'var(--primary, #0d9488)' : '#1e293b',
+                background: activeTab === 'dashboard' ? 'rgba(13, 148, 136, 0.12)' : 'rgba(255, 255, 255, 0.25)',
+                border: activeTab === 'dashboard' ? '1px solid rgba(13, 148, 136, 0.3)' : '1px solid rgba(255, 255, 255, 0.35)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.4rem',
-                fontWeight: 600
+                padding: '0.45rem 0.95rem',
+                borderRadius: '12px',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                position: 'relative',
+                backdropFilter: 'blur(8px)',
+                transition: 'all 0.2s ease'
               }}
             >
               <LayoutDashboard size={16} /> Workspace
               {proposalsCount > 0 && (
                 <span style={{
                   position: 'absolute',
-                  top: '4px',
-                  right: '4px',
+                  top: '5px',
+                  right: '5px',
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  backgroundColor: 'var(--accent-emerald, #10b981)'
+                  backgroundColor: '#10b981'
                 }} />
               )}
             </button>
@@ -266,7 +275,7 @@ export default function Header({
                   position: 'relative',
                   cursor: 'pointer',
                   padding: '0.5rem',
-                  color: '#64748b',
+                  color: '#475569',
                   borderRadius: '50%',
                   transition: 'color 0.2s ease'
                 }}
@@ -298,7 +307,7 @@ export default function Header({
               <div style={{ position: 'relative' }}>
                 <div
                   onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
-                  style={{ position: 'relative', cursor: 'pointer', padding: '0.5rem', color: '#64748b' }}
+                  style={{ position: 'relative', cursor: 'pointer', padding: '0.5rem', color: '#475569' }}
                 >
                   <Bell size={20} />
                   {unreadCount > 0 && (
@@ -330,10 +339,11 @@ export default function Header({
                     width: '320px',
                     maxHeight: '400px',
                     overflowY: 'auto',
-                    background: '#ffffff',
-                    border: '1px solid #e2e8f0',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(255,255,255,0.5)',
                     borderRadius: '16px',
-                    boxShadow: '0 15px 35px rgba(0,0,0,0.1)',
+                    boxShadow: '0 15px 35px rgba(0,0,0,0.12)',
                     zIndex: 1000
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', borderBottom: '1px solid #f1f5f9' }}>
@@ -351,7 +361,7 @@ export default function Header({
                         <div
                           key={n._id}
                           onClick={() => handleNotifClick(n)}
-                          style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', background: n.read ? 'transparent' : 'rgba(13, 148, 136, 0.05)' }}
+                          style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', background: n.read ? 'transparent' : 'rgba(13, 148, 136, 0.08)' }}
                         >
                           <div style={{ fontSize: '0.82rem', color: '#334155' }}>{n.message}</div>
                           <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.2rem' }}>{new Date(n.createdAt).toLocaleString()}</div>
@@ -367,13 +377,13 @@ export default function Header({
                 <button 
                   onClick={onOpenPostModal}
                   className="btn btn-primary btn-sm"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 1rem', borderRadius: '10px', fontWeight: 700 }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1.1rem', borderRadius: '12px', fontWeight: 700, boxShadow: '0 4px 12px rgba(13, 148, 136, 0.3)' }}
                 >
                   <PlusCircle size={16} /> Post Job
                 </button>
               )}
 
-              {/* USER PROFILE AVATAR & DROPDOWN */}
+              {/* USER PROFILE AVATAR */}
               <div style={{ position: 'relative' }}>
                 <div 
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
@@ -384,8 +394,9 @@ export default function Header({
                     cursor: 'pointer',
                     padding: '0.35rem 0.65rem',
                     borderRadius: '20px',
-                    background: 'rgba(0, 0, 0, 0.04)',
-                    border: '1px solid #e2e8f0'
+                    background: 'rgba(255, 255, 255, 0.4)',
+                    border: '1px solid rgba(255, 255, 255, 0.6)',
+                    backdropFilter: 'blur(8px)'
                   }}
                 >
                   <img 
@@ -405,11 +416,12 @@ export default function Header({
                     top: '120%',
                     right: 0,
                     width: '240px',
-                    background: '#ffffff',
-                    border: '1px solid #e2e8f0',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(255,255,255,0.5)',
                     borderRadius: '16px',
                     padding: '0.75rem',
-                    boxShadow: '0 15px 35px rgba(0,0,0,0.1)',
+                    boxShadow: '0 15px 35px rgba(0,0,0,0.12)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '0.5rem',
@@ -426,7 +438,7 @@ export default function Header({
                     <button 
                       onClick={() => { handleNavClick('dashboard'); setProfileDropdownOpen(false); }}
                       className="btn btn-secondary btn-sm"
-                      style={{ justifyContent: 'flex-start', color: '#334155' }}
+                      style={{ justifyContent: 'flex-start', color: '#334155', background: 'transparent' }}
                     >
                       <LayoutDashboard size={14} /> My Workspace
                     </button>
@@ -435,7 +447,7 @@ export default function Header({
                       onClick={() => avatarInputRef.current?.click()}
                       disabled={uploadingAvatar}
                       className="btn btn-secondary btn-sm"
-                      style={{ justifyContent: 'flex-start', color: '#334155' }}
+                      style={{ justifyContent: 'flex-start', color: '#334155', background: 'transparent' }}
                     >
                       <Camera size={14} /> {uploadingAvatar ? 'Uploading…' : 'Change Photo'}
                     </button>
@@ -450,7 +462,7 @@ export default function Header({
                     <button 
                       onClick={() => { onLogout(); setProfileDropdownOpen(false); }}
                       className="btn btn-secondary btn-sm"
-                      style={{ justifyContent: 'flex-start', color: '#334155' }}
+                      style={{ justifyContent: 'flex-start', color: '#334155', background: 'transparent' }}
                     >
                       <LogOut size={14} /> Log Out
                     </button>
@@ -472,14 +484,14 @@ export default function Header({
               <button 
                 onClick={() => handleNavClick('login')}
                 className="btn btn-secondary btn-sm"
-                style={{ color: '#334155', fontWeight: 600 }}
+                style={{ color: '#1e293b', fontWeight: 700, background: 'rgba(255, 255, 255, 0.3)', border: '1px solid rgba(255, 255, 255, 0.5)', backdropFilter: 'blur(8px)' }}
               >
                 <LogIn size={15} /> Log In
               </button>
               <button 
                 onClick={() => handleNavClick('signup')}
                 className="btn btn-primary btn-sm"
-                style={{ fontWeight: 700 }}
+                style={{ fontWeight: 700, boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)' }}
               >
                 <UserPlus size={15} /> Sign Up
               </button>
@@ -492,15 +504,16 @@ export default function Header({
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           style={{
             display: 'none',
-            background: 'rgba(0, 0, 0, 0.05)',
-            border: '1px solid #e2e8f0',
+            background: 'rgba(255, 255, 255, 0.4)',
+            border: '1px solid rgba(255, 255, 255, 0.6)',
             color: '#0f172a',
             width: '40px',
             height: '40px',
             borderRadius: '10px',
             alignItems: 'center',
             justifyContent: 'center',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            backdropFilter: 'blur(8px)'
           }}
           className="mobile-hamburger-btn"
           aria-label="Toggle Navigation"
@@ -512,24 +525,25 @@ export default function Header({
       {/* MOBILE SLIDE-DOWN DRAWER MENU */}
       {mobileMenuOpen && (
         <div style={{
-          background: 'rgba(255, 255, 255, 0.96)',
-          backdropFilter: 'blur(16px)',
-          borderBottom: '1px solid #e2e8f0',
+          background: 'rgba(255, 255, 255, 0.92)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.5)',
           padding: '1.25rem',
           display: 'flex',
           flexDirection: 'column',
-          gap: '0.75rem'
+          gap: '0.75rem',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.05)'
         }}>
           <button 
             onClick={() => handleNavClick('explore')}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'explore' ? 'rgba(13, 148, 136, 0.1)' : 'transparent', color: activeTab === 'explore' ? '#0d9488' : '#334155', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'explore' ? 'rgba(13, 148, 136, 0.12)' : 'transparent', color: activeTab === 'explore' ? '#0d9488' : '#1e293b', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
           >
             <Search size={18} /> Browse Jobs
           </button>
 
           <button 
             onClick={() => handleNavClick('freelancers')}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'freelancers' ? 'rgba(13, 148, 136, 0.1)' : 'transparent', color: activeTab === 'freelancers' ? '#0d9488' : '#334155', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'freelancers' ? 'rgba(13, 148, 136, 0.12)' : 'transparent', color: activeTab === 'freelancers' ? '#0d9488' : '#1e293b', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
           >
             <UserCheck size={18} /> Find Talent
           </button>
@@ -538,7 +552,7 @@ export default function Header({
             <>
               <button 
                 onClick={() => handleNavClick('dashboard')}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'dashboard' ? 'rgba(13, 148, 136, 0.1)' : 'transparent', color: activeTab === 'dashboard' ? '#0d9488' : '#334155', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'dashboard' ? 'rgba(13, 148, 136, 0.12)' : 'transparent', color: activeTab === 'dashboard' ? '#0d9488' : '#1e293b', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
               >
                 <LayoutDashboard size={18} /> My Workspace
               </button>
@@ -565,7 +579,7 @@ export default function Header({
               <button 
                 onClick={() => handleNavClick('login')}
                 className="btn btn-secondary" 
-                style={{ flex: 1, justifyContent: 'center' }}
+                style={{ flex: 1, justifyContent: 'center', background: 'rgba(255,255,255,0.4)' }}
               >
                 Log In
               </button>
@@ -581,15 +595,20 @@ export default function Header({
         </div>
       )}
 
-      {/* 🌟 100% GUARANTEED CSS OVERRIDE (NO DARK BLUE POSSIBLE) */}
+      {/* 🌟 100% PURE FROSTED GLASS CSS OVERRIDE */}
       <style>{`
-        header.main-navbar-header {
-          background-color: rgba(255, 255, 255, 0.85) !important;
-          backdrop-filter: blur(16px) !important;
-          -webkit-backdrop-filter: blur(16px) !important;
-          border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
+        header.workpulse-pure-glass-nav {
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 900 !important;
+          background: rgba(255, 255, 255, 0.2) !important;
+          background-color: rgba(255, 255, 255, 0.2) !important;
+          backdrop-filter: blur(20px) saturate(180%) !important;
+          -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.45) !important;
+          box-shadow: 0 4px 30px rgba(0, 0, 0, 0.04) !important;
         }
+
         @media (min-width: 768px) {
           .desktop-only-nav {
             display: flex !important;
