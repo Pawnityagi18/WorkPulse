@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, ArrowRight, ShieldCheck, CheckCircle2, Lock, Users } from 'lucide-react';
+import { Sparkles, ArrowRight, ShieldCheck, CheckCircle2, Lock } from 'lucide-react';
 
 export default function Hero({ onNavigate, currentUser }) {
   const isLoggedIn = Boolean(currentUser);
@@ -20,7 +20,7 @@ export default function Hero({ onNavigate, currentUser }) {
           alignItems: 'center'
         }}>
           
-          {/* LEFT: CLEAN HEADLINE & CALL-TO-ACTIONS (NO SEARCH BAR) */}
+          {/* LEFT: HEADLINE & ACTION BUTTONS (ZERO SEARCH BAR) */}
           <div>
             <div style={{
               display: 'inline-flex',
@@ -61,10 +61,10 @@ export default function Hero({ onNavigate, currentUser }) {
               marginBottom: '2rem',
               maxWidth: '520px'
             }}>
-              An AI-first freelance platform connecting clients with verified React, Python, and AI engineers. Built with 100% milestone escrow and a flat 5% commission.
+              An AI-first freelance platform connecting businesses with verified React, Python, and AI engineers. Protected by 100% milestone escrow and a flat 5% commission.
             </p>
 
-            {/* CALL TO ACTION BUTTONS (FOR LOGGED-OUT VISITORS) */}
+            {/* ACTION BUTTONS (NO SEARCH BAR) */}
             {!isLoggedIn ? (
               <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
                 <button
@@ -85,7 +85,6 @@ export default function Hero({ onNavigate, currentUser }) {
                 </button>
               </div>
             ) : (
-              /* LOGGED IN WELCOME CTA */
               <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
                 <button
                   type="button"
@@ -98,7 +97,7 @@ export default function Hero({ onNavigate, currentUser }) {
               </div>
             )}
 
-            {/* Feature Badges */}
+            {/* Platform Feature Badges */}
             <div style={{ display: 'flex', gap: '1.5rem', marginTop: '2.5rem', flexWrap: 'wrap', fontSize: '0.85rem', color: '#475569', fontWeight: 600 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <CheckCircle2 size={16} color="#008080" /> Flat 5% Platform Fee
@@ -112,7 +111,7 @@ export default function Hero({ onNavigate, currentUser }) {
             </div>
           </div>
 
-          {/* RIGHT: CLEAN ENTERPRISE GUARANTEE CARD (NO BUBBLES, NO STOCK PHOTOS) */}
+          {/* RIGHT: MINIMALIST PLATFORM GUARANTEE CARD */}
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <div style={{
               width: '100%',
@@ -143,7 +142,7 @@ export default function Hero({ onNavigate, currentUser }) {
               </h3>
 
               <p style={{ fontSize: '0.875rem', color: '#64748B', lineHeight: 1.55, marginBottom: '1.5rem' }}>
-                Client funds are held in secure escrow. Freelancers start work with guaranteed payment; clients release funds only upon final deliverable review.
+                Client deposits are locked in secure escrow. Freelancers work with guaranteed payment; clients release funds only after deliverable approval.
               </p>
 
               <div style={{
