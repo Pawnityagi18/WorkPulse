@@ -13,7 +13,10 @@ import {
   Menu, 
   X, 
   Bell, 
-  Camera 
+  Camera,
+  Briefcase,
+  TrendingUp,
+  Sparkles
 } from 'lucide-react';
 import { 
   apiFetchNotifications, 
@@ -47,9 +50,34 @@ export default function Header({
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef(null);
 
+  // 🌟 LINKEDIN PRO SEARCH STATE
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [searchScope, setSearchScope] = useState('jobs'); // 'jobs' | 'talent'
+  const searchContainerRef = useRef(null);
+
+  const TRENDING_SUGGESTIONS = [
+    { label: 'React.js Developer', query: 'React', type: 'jobs' },
+    { label: 'Senior UI/UX Designer', query: 'UI/UX', type: 'talent' },
+    { label: 'Python & AI Engineer', query: 'Python', type: 'jobs' },
+    { label: 'Next.js 15 Full-Stack', query: 'Next.js', type: 'jobs' },
+    { label: 'Flutter Mobile Specialist', query: 'Flutter', type: 'talent' },
+    { label: 'Docker & DevOps Architect', query: 'Docker', type: 'jobs' }
+  ];
+
   const isLoggedIn = Boolean(currentUser);
   const role = currentUser?.role;
   const isClient = isLoggedIn && role === 'client';
+
+  // Click outside to close LinkedIn search dropdown
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -126,19 +154,34 @@ export default function Header({
     setMobileMenuOpen(false);
   };
 
-  // Search input change handler
-  const handleSearchChange = (e) => {
-    if (setSearchQuery) setSearchQuery(e.target.value);
-    if (activeTab !== 'explore') setActiveTab('explore');
-  };
+  // 🌟 LINKEDIN SUGGESTION CLICK
+  const handleSelectSuggestion = (item) => {
+    if (setSearchQuery) setSearchQuery(item.query);
+    setSearchFocused(false);
 
-  const handleSearchKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      if (activeTab !== 'explore') setActiveTab('explore');
+    if (item.type === 'talent') {
+      setActiveTab('freelancers');
+    } else {
+      setActiveTab('explore');
       setTimeout(() => {
         const el = document.getElementById('project-list-section') || document.getElementById('projects-section');
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 50);
+      }, 60);
+    }
+  };
+
+  const handleSearchSubmit = (e) => {
+    if (e.key === 'Enter') {
+      setSearchFocused(false);
+      if (searchScope === 'talent') {
+        setActiveTab('freelancers');
+      } else {
+        setActiveTab('explore');
+        setTimeout(() => {
+          const el = document.getElementById('project-list-section') || document.getElementById('projects-section');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 60);
+      }
     }
   };
 
@@ -152,10 +195,10 @@ export default function Header({
         gap: '1rem'
       }}>
         
-        {/* LEFT AREA: BRAND LOGO + LINKEDIN-STYLE SEARCH BAR */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flex: isLoggedIn ? '1 1 auto' : 'initial', maxWidth: isLoggedIn ? '580px' : 'auto' }}>
+        {/* LEFT: BRAND LOGO + LINKEDIN-STYLE SEARCH BAR */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flex: isLoggedIn ? '1 1 auto' : 'initial', maxWidth: isLoggedIn ? '620px' : 'auto' }}>
           
-          {/* Brand Logo */}
+          {/* Logo */}
           <div 
             onClick={handleBrowseJobsClick} 
             style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', cursor: 'pointer', flexShrink: 0 }}
@@ -192,15 +235,19 @@ export default function Header({
             </div>
           </div>
 
-          {/* 🌟 LINKEDIN-STYLE NAVBAR SEARCH BAR (ONLY VISIBLE WHEN LOGGED IN) */}
+          {/* 🌟 OFFICIAL LINKEDIN SEARCH BAR WITH DROPDOWN (LOGGED IN ONLY) */}
           {isLoggedIn && (
-            <div className="navbar-linkedin-search-container" style={{
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              width: '100%',
-              maxWidth: '380px'
-            }}>
+            <div 
+              ref={searchContainerRef}
+              className="navbar-linkedin-search-container" 
+              style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                width: '100%',
+                maxWidth: '420px'
+              }}
+            >
               <Search 
                 size={16} 
                 color="#64748B" 
@@ -208,79 +255,147 @@ export default function Header({
               />
               <input 
                 type="text"
-                placeholder="Search jobs, skills, clients..."
+                placeholder={searchScope === 'jobs' ? "Search jobs by skill, title..." : "Search freelancers & talent..."}
                 value={searchQuery}
-                onChange={handleSearchChange}
-                onKeyDown={handleSearchKeyDown}
+                onFocus={() => setSearchFocused(true)}
+                onChange={(e) => {
+                  if (setSearchQuery) setSearchQuery(e.target.value);
+                }}
+                onKeyDown={handleSearchSubmit}
                 style={{
                   width: '100%',
-                  padding: '0.5rem 2rem 0.5rem 2.25rem',
-                  borderRadius: '24px',
+                  padding: '0.55rem 2.2rem 0.55rem 2.3rem',
+                  borderRadius: searchFocused ? '18px 18px 0 0' : '24px',
                   border: '1.5px solid #CBD5E1',
-                  background: 'rgba(255, 255, 255, 0.9)',
+                  background: searchFocused ? '#FFFFFF' : 'rgba(255, 255, 255, 0.9)',
                   color: '#0F172A',
                   fontSize: '0.875rem',
                   fontWeight: 500,
                   outline: 'none',
                   transition: 'all 0.2s ease',
-                  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.04)'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#008080';
-                  e.target.style.background = '#FFFFFF';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(0, 128, 128, 0.15)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#CBD5E1';
-                  e.target.style.background = 'rgba(255, 255, 255, 0.9)';
-                  e.target.style.boxShadow = 'none';
+                  boxShadow: searchFocused ? '0 10px 25px rgba(0, 128, 128, 0.12)' : 'none'
                 }}
               />
-              {/* Clear Search Button */}
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery && setSearchQuery('')}
                   style={{
                     position: 'absolute',
-                    right: '10px',
+                    right: '12px',
                     background: 'none',
                     border: 'none',
                     color: '#94A3B8',
                     cursor: 'pointer',
                     padding: '2px',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
+                    alignItems: 'center'
                   }}
-                  title="Clear search"
                 >
                   <X size={14} />
                 </button>
+              )}
+
+              {/* 🌟 LINKEDIN-STYLE LIVE DROPDOWN POPUP */}
+              {searchFocused && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  background: '#FFFFFF',
+                  border: '1.5px solid #008080',
+                  borderTop: 'none',
+                  borderRadius: '0 0 18px 18px',
+                  boxShadow: '0 15px 30px rgba(0, 0, 0, 0.15)',
+                  padding: '1rem',
+                  zIndex: 1000
+                }}>
+                  {/* Scope Selector: Jobs vs Talent */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 700 }}>Search in:</span>
+                    <button
+                      type="button"
+                      onClick={() => setSearchScope('jobs')}
+                      style={{
+                        padding: '2px 10px',
+                        borderRadius: '12px',
+                        border: searchScope === 'jobs' ? '1.5px solid #008080' : '1px solid #E2E8F0',
+                        background: searchScope === 'jobs' ? '#E6F4F1' : '#F8FAFC',
+                        color: searchScope === 'jobs' ? '#008080' : '#475569',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      💼 Jobs
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSearchScope('talent')}
+                      style={{
+                        padding: '2px 10px',
+                        borderRadius: '12px',
+                        border: searchScope === 'talent' ? '1.5px solid #008080' : '1px solid #E2E8F0',
+                        background: searchScope === 'talent' ? '#E6F4F1' : '#F8FAFC',
+                        color: searchScope === 'talent' ? '#008080' : '#475569',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      👥 Talent
+                    </button>
+                  </div>
+
+                  {/* Trending Searches Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '0.6rem' }}>
+                    <TrendingUp size={13} color="#008080" /> Trending Searches
+                  </div>
+
+                  {/* Suggestion List */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {TRENDING_SUGGESTIONS.map((item, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => handleSelectSuggestion(item)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.45rem 0.65rem',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          transition: 'background 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#F0FAF8'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: '#1E293B' }}>
+                          <Search size={14} color="#94A3B8" />
+                          <span>{item.label}</span>
+                        </div>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: item.type === 'talent' ? '#0EA5E9' : '#008080', background: item.type === 'talent' ? '#E0F2FE' : '#E6F4F1', padding: '2px 6px', borderRadius: '6px' }}>
+                          {item.type}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           )}
 
         </div>
 
-        {/* RIGHT AREA: NAVIGATION LINKS & ACTIONS */}
+        {/* RIGHT: NAVIGATION & USER ACTIONS */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
           
-          {/* Desktop Nav Links */}
           <nav style={{ display: 'none', alignItems: 'center', gap: '0.4rem' }} className="desktop-only-nav">
             <button 
               onClick={handleBrowseJobsClick}
               className={`btn ${activeTab === 'explore' ? 'btn-secondary' : ''}`}
-              style={{ 
-                color: activeTab === 'explore' ? 'var(--primary, #008080)' : '#334155',
-                background: activeTab === 'explore' ? 'rgba(0, 128, 128, 0.1)' : 'transparent',
-                border: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
+              style={{ color: activeTab === 'explore' ? 'var(--primary, #008080)' : '#334155', background: activeTab === 'explore' ? 'rgba(0, 128, 128, 0.1)' : 'transparent', border: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, cursor: 'pointer' }}
             >
               Browse Jobs
             </button>
@@ -288,134 +403,49 @@ export default function Header({
             <button 
               onClick={() => handleNavClick('freelancers')}
               className={`btn ${activeTab === 'freelancers' ? 'btn-secondary' : ''}`}
-              style={{ 
-                color: activeTab === 'freelancers' ? 'var(--primary, #008080)' : '#334155',
-                background: activeTab === 'freelancers' ? 'rgba(0, 128, 128, 0.1)' : 'transparent',
-                border: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
+              style={{ color: activeTab === 'freelancers' ? 'var(--primary, #008080)' : '#334155', background: activeTab === 'freelancers' ? 'rgba(0, 128, 128, 0.1)' : 'transparent', border: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, cursor: 'pointer' }}
             >
               Find Talent
             </button>
 
-            {/* Workspace: Logged-in only */}
             {isLoggedIn && (
               <button 
                 onClick={() => handleNavClick('dashboard')}
                 className={`btn ${activeTab === 'dashboard' ? 'btn-secondary' : ''}`}
-                style={{ 
-                  color: activeTab === 'dashboard' ? 'var(--primary, #008080)' : '#334155',
-                  background: activeTab === 'dashboard' ? 'rgba(0, 128, 128, 0.1)' : 'transparent',
-                  border: 'none',
-                  position: 'relative',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
+                style={{ color: activeTab === 'dashboard' ? 'var(--primary, #008080)' : '#334155', background: activeTab === 'dashboard' ? 'rgba(0, 128, 128, 0.1)' : 'transparent', border: 'none', position: 'relative', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, cursor: 'pointer' }}
               >
                 <LayoutDashboard size={16} /> Workspace
                 {proposalsCount > 0 && (
-                  <span style={{
-                    position: 'absolute',
-                    top: '4px',
-                    right: '4px',
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: '#10b981'
-                  }} />
+                  <span style={{ position: 'absolute', top: '4px', right: '4px', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                 )}
               </button>
             )}
           </nav>
 
-          {/* Desktop Actions */}
           <div style={{ display: 'none', alignItems: 'center', gap: '0.75rem' }} className="desktop-only-actions">
             {isLoggedIn ? (
               <>
-                {/* Bookmarks */}
-                <div 
-                  onClick={handleBrowseJobsClick}
-                  style={{
-                    position: 'relative',
-                    cursor: 'pointer',
-                    padding: '0.5rem',
-                    color: '#64748B',
-                    borderRadius: '50%',
-                    transition: 'color 0.2s ease'
-                  }}
-                  title="Saved Jobs"
-                >
+                <div onClick={handleBrowseJobsClick} style={{ position: 'relative', cursor: 'pointer', padding: '0.5rem', color: '#64748B' }} title="Saved Jobs">
                   <Bookmark size={20} />
                   {savedCount > 0 && (
-                    <span style={{
-                      position: 'absolute',
-                      top: '0',
-                      right: '0',
-                      backgroundColor: '#F59E0B',
-                      color: '#FFF',
-                      fontSize: '0.65rem',
-                      fontWeight: 700,
-                      width: '16px',
-                      height: '16px',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
+                    <span style={{ position: 'absolute', top: '0', right: '0', backgroundColor: '#F59E0B', color: '#FFF', fontSize: '0.65rem', fontWeight: 700, width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {savedCount}
                     </span>
                   )}
                 </div>
 
-                {/* Notifications */}
                 <div style={{ position: 'relative' }}>
-                  <div
-                    onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
-                    style={{ position: 'relative', cursor: 'pointer', padding: '0.5rem', color: '#64748B' }}
-                  >
+                  <div onClick={() => setNotifDropdownOpen(!notifDropdownOpen)} style={{ position: 'relative', cursor: 'pointer', padding: '0.5rem', color: '#64748B' }}>
                     <Bell size={20} />
                     {unreadCount > 0 && (
-                      <span style={{
-                        position: 'absolute',
-                        top: '0',
-                        right: '0',
-                        backgroundColor: '#EF4444',
-                        color: '#FFF',
-                        fontSize: '0.65rem',
-                        fontWeight: 700,
-                        width: '16px',
-                        height: '16px',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
+                      <span style={{ position: 'absolute', top: '0', right: '0', backgroundColor: '#EF4444', color: '#FFF', fontSize: '0.65rem', fontWeight: 700, width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         {unreadCount > 9 ? '9+' : unreadCount}
                       </span>
                     )}
                   </div>
 
                   {notifDropdownOpen && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '115%',
-                      right: 0,
-                      width: '320px',
-                      maxHeight: '400px',
-                      overflowY: 'auto',
-                      background: '#FFFFFF',
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '16px',
-                      boxShadow: '0 15px 35px rgba(0,0,0,0.1)',
-                      zIndex: 1000
-                    }}>
+                    <div style={{ position: 'absolute', top: '115%', right: 0, width: '320px', maxHeight: '400px', overflowY: 'auto', background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', boxShadow: '0 15px 35px rgba(0,0,0,0.1)', zIndex: 1000 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', borderBottom: '1px solid #F1F5F9' }}>
                         <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0F172A' }}>Notifications</span>
                         {unreadCount > 0 && (
@@ -428,11 +458,7 @@ export default function Header({
                         <div style={{ padding: '2rem 1rem', textAlign: 'center', color: '#94A3B8', fontSize: '0.85rem' }}>No notifications yet</div>
                       ) : (
                         notifications.map((n) => (
-                          <div
-                            key={n._id}
-                            onClick={() => handleNotifClick(n)}
-                            style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #F1F5F9', cursor: 'pointer', background: n.read ? 'transparent' : 'rgba(0, 128, 128, 0.05)' }}
-                          >
+                          <div key={n._id} onClick={() => handleNotifClick(n)} style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #F1F5F9', cursor: 'pointer', background: n.read ? 'transparent' : 'rgba(0, 128, 128, 0.05)' }}>
                             <div style={{ fontSize: '0.82rem', color: '#334155' }}>{n.message}</div>
                             <div style={{ fontSize: '0.7rem', color: '#94A3B8', marginTop: '0.2rem' }}>{new Date(n.createdAt).toLocaleString()}</div>
                           </div>
@@ -442,104 +468,41 @@ export default function Header({
                   )}
                 </div>
 
-                {/* Post Project (Clients only) */}
                 {isClient && (
-                  <button 
-                    onClick={onOpenPostModal}
-                    className="btn btn-primary btn-sm"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 1rem', borderRadius: '10px', fontWeight: 700 }}
-                  >
+                  <button onClick={onOpenPostModal} className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 1rem', borderRadius: '10px', fontWeight: 700 }}>
                     <PlusCircle size={16} /> Post Job
                   </button>
                 )}
 
-                {/* Profile Dropdown */}
                 <div style={{ position: 'relative' }}>
-                  <div 
-                    onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      cursor: 'pointer',
-                      padding: '0.35rem 0.65rem',
-                      borderRadius: '20px',
-                      background: 'rgba(0, 0, 0, 0.04)',
-                      border: '1px solid #E2E8F0'
-                    }}
-                  >
-                    <img 
-                      src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'} 
-                      alt={currentUser.name}
-                      style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }}
-                    />
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main, #0F172A)' }}>
-                      {currentUser.name.split(' ')[0]}
-                    </span>
+                  <div onClick={() => setProfileDropdownOpen(!profileDropdownOpen)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.35rem 0.65rem', borderRadius: '20px', background: 'rgba(0, 0, 0, 0.04)', border: '1px solid #E2E8F0' }}>
+                    <img src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'} alt={currentUser.name} style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main, #0F172A)' }}>{currentUser.name.split(' ')[0]}</span>
                     <ChevronDown size={14} color="#64748B" />
                   </div>
 
                   {profileDropdownOpen && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '120%',
-                      right: 0,
-                      width: '240px',
-                      background: '#FFFFFF',
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '16px',
-                      padding: '0.75rem',
-                      boxShadow: '0 15px 35px rgba(0,0,0,0.1)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.5rem',
-                      zIndex: 1000
-                    }}>
+                    <div style={{ position: 'absolute', top: '120%', right: 0, width: '240px', background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '0.75rem', boxShadow: '0 15px 35px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', gap: '0.5rem', zIndex: 1000 }}>
                       <div style={{ paddingBottom: '0.5rem', borderBottom: '1px solid #F1F5F9' }}>
                         <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0F172A' }}>{currentUser.name}</div>
                         <div style={{ fontSize: '0.75rem', color: '#64748B' }}>{currentUser.email}</div>
-                        <span className="badge badge-category" style={{ marginTop: '0.35rem' }}>
-                          Mode: {isClient ? 'Employer' : 'Freelancer'}
-                        </span>
+                        <span className="badge badge-category" style={{ marginTop: '0.35rem' }}>Mode: {isClient ? 'Employer' : 'Freelancer'}</span>
                       </div>
 
-                      <button 
-                        onClick={() => { handleNavClick('dashboard'); setProfileDropdownOpen(false); }}
-                        className="btn btn-secondary btn-sm"
-                        style={{ justifyContent: 'flex-start' }}
-                      >
+                      <button onClick={() => { handleNavClick('dashboard'); setProfileDropdownOpen(false); }} className="btn btn-secondary btn-sm" style={{ justifyContent: 'flex-start' }}>
                         <LayoutDashboard size={14} /> My Workspace
                       </button>
 
-                      <button
-                        onClick={() => avatarInputRef.current?.click()}
-                        disabled={uploadingAvatar}
-                        className="btn btn-secondary btn-sm"
-                        style={{ justifyContent: 'flex-start' }}
-                      >
+                      <button onClick={() => avatarInputRef.current?.click()} disabled={uploadingAvatar} className="btn btn-secondary btn-sm" style={{ justifyContent: 'flex-start' }}>
                         <Camera size={14} /> {uploadingAvatar ? 'Uploading…' : 'Change Photo'}
                       </button>
-                      <input
-                        ref={avatarInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarFileSelected}
-                        style={{ display: 'none' }}
-                      />
+                      <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarFileSelected} style={{ display: 'none' }} />
 
-                      <button 
-                        onClick={() => { onLogout(); setProfileDropdownOpen(false); }}
-                        className="btn btn-secondary btn-sm"
-                        style={{ justifyContent: 'flex-start' }}
-                      >
+                      <button onClick={() => { onLogout(); setProfileDropdownOpen(false); }} className="btn btn-secondary btn-sm" style={{ justifyContent: 'flex-start' }}>
                         <LogOut size={14} /> Log Out
                       </button>
 
-                      <button 
-                        onClick={handleDeleteAccountClick}
-                        className="btn btn-secondary btn-sm"
-                        style={{ justifyContent: 'flex-start', color: '#EF4444', background: '#FEF2F2', border: '1px solid #FECACA' }}
-                      >
+                      <button onClick={handleDeleteAccountClick} className="btn btn-secondary btn-sm" style={{ justifyContent: 'flex-start', color: '#EF4444', background: '#FEF2F2', border: '1px solid #FECACA' }}>
                         <Trash2 size={14} /> Delete Account
                       </button>
                     </div>
@@ -547,121 +510,53 @@ export default function Header({
                 </div>
               </>
             ) : (
-              /* LOGGED OUT: Clean Log In & Sign Up buttons only */
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <button 
-                  onClick={() => handleNavClick('login')}
-                  className="btn btn-secondary btn-sm"
-                  style={{ color: '#334155', fontWeight: 600 }}
-                >
-                  <LogIn size={15} /> Log In
-                </button>
-                <button 
-                  onClick={() => handleNavClick('signup')}
-                  className="btn btn-primary btn-sm"
-                  style={{ fontWeight: 700 }}
-                >
-                  <UserPlus size={15} /> Sign Up
-                </button>
+                <button onClick={() => handleNavClick('login')} className="btn btn-secondary btn-sm" style={{ color: '#334155', fontWeight: 600 }}>Log In</button>
+                <button onClick={() => handleNavClick('signup')} className="btn btn-primary btn-sm" style={{ fontWeight: 700 }}>Sign Up</button>
               </div>
             )}
           </div>
 
-          {/* MOBILE HAMBURGER TOGGLE BUTTON */}
-          <button 
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            style={{
-              display: 'none',
-              background: 'rgba(0, 0, 0, 0.05)',
-              border: '1px solid #E2E8F0',
-              color: '#0F172A',
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer'
-            }}
-            className="mobile-hamburger-btn"
-            aria-label="Toggle Navigation"
-          >
+          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} style={{ display: 'none', background: 'rgba(0, 0, 0, 0.05)', border: '1px solid #E2E8F0', color: '#0F172A', width: '40px', height: '40px', borderRadius: '10px', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }} className="mobile-hamburger-btn">
             {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
 
       </div>
 
-      {/* MOBILE DRAWER */}
+      {/* MOBILE MENU */}
       {mobileMenuOpen && (
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.98)',
-          backdropFilter: 'blur(16px)',
-          borderBottom: '1px solid #E2E8F0',
-          padding: '1.25rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.75rem'
-        }}>
-          {/* Mobile Search Bar (Logged in only) */}
+        <div style={{ background: 'rgba(255, 255, 255, 0.98)', backdropFilter: 'blur(16px)', borderBottom: '1px solid #E2E8F0', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {isLoggedIn && (
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
               <Search size={16} color="#64748B" style={{ position: 'absolute', left: '12px' }} />
-              <input 
-                type="text"
-                placeholder="Search jobs, skills..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-                onKeyDown={handleSearchKeyDown}
-                style={{
-                  width: '100%',
-                  padding: '0.55rem 1rem 0.55rem 2.25rem',
-                  borderRadius: '20px',
-                  border: '1.5px solid #CBD5E1',
-                  background: '#F8FAFC',
-                  fontSize: '0.85rem'
-                }}
-              />
+              <input type="text" placeholder="Search jobs, skills..." value={searchQuery} onChange={(e) => setSearchQuery && setSearchQuery(e.target.value)} style={{ width: '100%', padding: '0.55rem 1rem 0.55rem 2.25rem', borderRadius: '20px', border: '1.5px solid #CBD5E1', background: '#F8FAFC', fontSize: '0.85rem' }} />
             </div>
           )}
 
-          <button 
-            onClick={handleBrowseJobsClick}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'explore' ? 'rgba(0, 128, 128, 0.1)' : 'transparent', color: activeTab === 'explore' ? '#008080' : '#334155', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
-          >
+          <button onClick={handleBrowseJobsClick} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'explore' ? 'rgba(0, 128, 128, 0.1)' : 'transparent', color: activeTab === 'explore' ? '#008080' : '#334155', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}>
             <Search size={18} /> Browse Jobs
           </button>
 
-          <button 
-            onClick={() => handleNavClick('freelancers')}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'freelancers' ? 'rgba(0, 128, 128, 0.1)' : 'transparent', color: activeTab === 'freelancers' ? '#008080' : '#334155', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
-          >
+          <button onClick={() => handleNavClick('freelancers')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'freelancers' ? 'rgba(0, 128, 128, 0.1)' : 'transparent', color: activeTab === 'freelancers' ? '#008080' : '#334155', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}>
             <UserCheck size={18} /> Find Talent
           </button>
 
           {isLoggedIn ? (
             <>
-              <button 
-                onClick={() => handleNavClick('dashboard')}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'dashboard' ? 'rgba(0, 128, 128, 0.1)' : 'transparent', color: activeTab === 'dashboard' ? '#008080' : '#334155', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
-              >
+              <button onClick={() => handleNavClick('dashboard')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'dashboard' ? 'rgba(0, 128, 128, 0.1)' : 'transparent', color: activeTab === 'dashboard' ? '#008080' : '#334155', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}>
                 <LayoutDashboard size={18} /> My Workspace
               </button>
 
               {isClient && (
-                <button 
-                  onClick={() => { onOpenPostModal(); setMobileMenuOpen(false); }}
-                  className="btn btn-primary"
-                  style={{ width: '100%', marginTop: '0.5rem', justifyContent: 'center' }}
-                >
+                <button onClick={() => { onOpenPostModal(); setMobileMenuOpen(false); }} className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem', justifyContent: 'center' }}>
                   <PlusCircle size={18} /> Post a Job
                 </button>
               )}
 
               <div style={{ paddingTop: '0.75rem', borderTop: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
                 <span style={{ fontSize: '0.85rem', color: '#64748B' }}>Logged in as <strong>{currentUser.name}</strong></span>
-                <button onClick={() => { onLogout(); setMobileMenuOpen(false); }} style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}>
-                  Log Out
-                </button>
+                <button onClick={() => { onLogout(); setMobileMenuOpen(false); }} style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}>Log Out</button>
               </div>
             </>
           ) : (
