@@ -20,22 +20,21 @@ import { apiLogin, apiSignup } from '../api/client';
 export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess }) {
   const isLogin = mode === 'login';
   
-  // Step State for Multi-Step Signup Wizard
-  const [step, setStep] = useState(1); // 1 = Account Basics, 2 = Profile & Identity
+  // 🌟 STEP STATE: 1 = Account Credentials, 2 = Profile, Gender & Avatar
+  const [step, setStep] = useState(1);
 
   // Form State
-  const [role, setRole] = useState('freelancer'); // 'freelancer' | 'client'
+  const [role, setRole] = useState('freelancer');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   
-  // New Step 2 Fields: Gender, Profession & Custom Avatar
-  const [gender, setGender] = useState('male'); // 'male' | 'female' | 'other'
+  // Step 2 Fields
+  const [gender, setGender] = useState('male');
   const [profession, setProfession] = useState('');
   const [customAvatarUploaded, setCustomAvatarUploaded] = useState(false);
   
-  // Default Avatars based on Gender
   const DEFAULT_AVATARS = {
     male: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80',
     female: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80',
@@ -50,7 +49,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
 
   const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
 
-  // Auto-Update Avatar when Gender changes (Only if user hasn't uploaded a custom photo)
+  // Gender badalne par avatar auto-switch
   const handleGenderChange = (selectedGender) => {
     setGender(selectedGender);
     if (!customAvatarUploaded) {
@@ -58,7 +57,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
     }
   };
 
-  // Custom Photo Upload Handler (FileReader preview)
+  // Custom photo upload
   const handleCustomPhotoSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -77,7 +76,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
     reader.readAsDataURL(file);
   };
 
-  // Password Strength Calculation
+  // Password Strength
   const hasMinLength = password.length >= 8;
   const hasUppercase = /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
@@ -94,7 +93,6 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
 
   const strength = getStrengthLabel();
 
-  // One-Click Generate Strong Password
   const handleSuggestStrongPassword = () => {
     const chars = 'abcdefghijklmnopqrstuvwxyz';
     const caps = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -115,7 +113,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
     setShowPassword(true);
   };
 
-  // Google Identity Services Load
+  // Google SDK Init
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://accounts.google.com/gsi/client';
@@ -131,7 +129,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
         });
 
         const btnContainer = document.getElementById('googleSignInBtn');
-        if (btnContainer) {
+        if (btnContainer && step === 1) {
           btnContainer.innerHTML = '';
           window.google.accounts.id.renderButton(btnContainer, {
             theme: 'outline',
@@ -152,6 +150,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
     };
   }, [isLogin, role, step]);
 
+  // 🌟 GOOGLE AUTH RESPONSE: SIGNUP MEIN SEEDHE STEP 2 KHULEGA!
   const handleGoogleResponse = (response) => {
     try {
       setLoading(true);
@@ -162,22 +161,32 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
       );
       const payload = JSON.parse(jsonPayload);
 
-      const realGoogleUser = {
-        _id: 'google-' + payload.sub,
-        name: payload.name,
-        email: payload.email,
-        avatar: payload.picture,
-        role: role,
-        gender: gender,
-        profession: profession || (role === 'client' ? 'Talent Recruiter' : 'Full-Stack Developer'),
-        verified: true
-      };
+      setName(payload.name || '');
+      setEmail(payload.email || '');
+      if (payload.picture) {
+        setAvatar(payload.picture);
+        setCustomAvatarUploaded(true);
+      }
 
-      localStorage.setItem('token', response.credential);
-      localStorage.setItem('workpulse_user', JSON.stringify(realGoogleUser));
-      
-      onLoginSuccess(realGoogleUser, isLogin ? `Welcome back, ${realGoogleUser.name}!` : `Welcome to WorkPulse, ${realGoogleUser.name}!`);
-      onNavigate('explore');
+      if (isLogin) {
+        // Login me direct success
+        const realGoogleUser = {
+          _id: 'google-' + payload.sub,
+          name: payload.name,
+          email: payload.email,
+          avatar: payload.picture || DEFAULT_AVATARS.male,
+          role: role,
+          verified: true
+        };
+        localStorage.setItem('token', response.credential);
+        localStorage.setItem('workpulse_user', JSON.stringify(realGoogleUser));
+        onLoginSuccess(realGoogleUser, `Welcome back, ${realGoogleUser.name}!`);
+        onNavigate('explore');
+      } else {
+        // Signup me 2ND FORM KHULEGA (Gender & Profession)!
+        setStep(2);
+        setErrorMsg('');
+      }
     } catch (err) {
       setErrorMsg('Google Authentication failed. Please try again.');
     } finally {
@@ -186,26 +195,31 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
   };
 
   const handleFallbackGoogle = () => {
-    const simulatedName = name.trim() || 'Google User';
-    const simulatedEmail = email.trim() || 'user@gmail.com';
-    const googleUser = {
-      _id: 'google-user-' + Date.now(),
-      name: simulatedName,
-      email: simulatedEmail,
-      role: role,
-      gender: gender,
-      profession: profession || 'Software Engineer',
-      avatar: avatar,
-      verified: true
-    };
-    localStorage.setItem('token', 'google_jwt_' + Date.now());
-    localStorage.setItem('workpulse_user', JSON.stringify(googleUser));
-    onLoginSuccess(googleUser, isLogin ? `Welcome back!` : `Account created!`);
-    onNavigate('explore');
+    if (isLogin) {
+      const simulatedName = name.trim() || 'Google User';
+      const simulatedEmail = email.trim() || 'user@gmail.com';
+      const googleUser = {
+        _id: 'google-user-' + Date.now(),
+        name: simulatedName,
+        email: simulatedEmail,
+        role: role,
+        avatar: avatar,
+        verified: true
+      };
+      localStorage.setItem('token', 'google_jwt_' + Date.now());
+      localStorage.setItem('workpulse_user', JSON.stringify(googleUser));
+      onLoginSuccess(googleUser, `Welcome back!`);
+      onNavigate('explore');
+    } else {
+      // Signup fallback me bhi Step 2 khulega!
+      setName(name.trim() || 'Google User');
+      setEmail(email.trim() || 'user@gmail.com');
+      setStep(2);
+    }
   };
 
-  // STEP 1 VALIDATION & PROGRESS
-  const handleNextStep = (e) => {
+  // 🌟 STEP 1 SUBMIT: VALIDATE KARKE STEP 2 KHOLNA
+  const handleProceedToStep2 = (e) => {
     e.preventDefault();
     setErrorMsg('');
 
@@ -217,16 +231,16 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
       setErrorMsg('Please enter a valid email address.');
       return;
     }
-    if (strengthScore < 2) {
-      setErrorMsg('Please enter a stronger password (at least 8 characters).');
+    if (!isLogin && strengthScore < 2) {
+      setErrorMsg('Please enter a password with at least 8 characters.');
       return;
     }
 
-    setStep(2); // Proceed to Profile & Gender Step
+    setStep(2); // STEP 2 OPEN!
   };
 
-  // FINAL REGISTRATION / LOGIN SUBMISSION
-  const handleSubmit = async (e) => {
+  // 🌟 FINAL FORM SUBMIT (STEP 2 COMPLETED)
+  const handleFinalSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setLoading(true);
@@ -239,10 +253,10 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
         result = await apiSignup({ 
           name, 
           email, 
-          password, 
+          password: password || 'GoogleAuthPass2026!', 
           role,
           gender,
-          profession: profession || (role === 'client' ? 'Hiring Employer' : 'Professional Freelancer'),
+          profession: profession.trim() || (role === 'client' ? 'Hiring Client' : 'Full-Stack Developer'),
           avatar
         });
       }
@@ -291,7 +305,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
         position: 'relative'
       }}>
         
-        {/* Navigation / Back Button */}
+        {/* Back Button */}
         <button
           onClick={() => {
             if (!isLogin && step === 2) {
@@ -319,15 +333,49 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
           <ArrowLeft size={16} /> {!isLogin && step === 2 ? 'Back to Step 1' : 'Back to Marketplace'}
         </button>
 
-        {/* Multi-Step Progress Indicator (Signup Only) */}
+        {/* 🌟 STEP 1 & 2 INTERACTIVE TABS */}
         {!isLogin && (
           <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', fontSize: '0.78rem', fontWeight: 700, color: 'var(--primary)' }}>
-              <span>Step {step} of 2: {step === 1 ? 'Account Credentials' : 'Identity & Profile'}</span>
-              <span>{step === 1 ? '50%' : '100%'}</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.6rem' }}>
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                style={{
+                  padding: '0.4rem',
+                  borderRadius: '8px',
+                  border: step === 1 ? '2px solid var(--primary)' : '1px solid #E2E8F0',
+                  background: step === 1 ? 'var(--primary-light)' : '#F8FAFC',
+                  color: step === 1 ? 'var(--primary)' : '#64748b',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                1. Account Basics
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (name && email) setStep(2);
+                  else setErrorMsg('Please fill name and email in Step 1 first.');
+                }}
+                style={{
+                  padding: '0.4rem',
+                  borderRadius: '8px',
+                  border: step === 2 ? '2px solid var(--primary)' : '1px solid #E2E8F0',
+                  background: step === 2 ? 'var(--primary-light)' : '#F8FAFC',
+                  color: step === 2 ? 'var(--primary)' : '#64748b',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                2. Profile & Identity
+              </button>
             </div>
-            <div style={{ width: '100%', height: '5px', background: '#E2E8F0', borderRadius: '4px', overflow: 'hidden' }}>
-              <div style={{ width: step === 1 ? '50%' : '100%', height: '100%', background: 'linear-gradient(135deg, #008080 0%, #0284C7 100%)', transition: 'width 0.3s ease' }} />
+            {/* Progress Bar */}
+            <div style={{ width: '100%', height: '4px', background: '#E2E8F0', borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{ width: step === 1 ? '50%' : '100%', height: '100%', background: 'var(--primary)', transition: 'width 0.3s ease' }} />
             </div>
           </div>
         )}
@@ -340,7 +388,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
           <p style={{ color: 'var(--text-muted, #64748b)', fontSize: '0.875rem', margin: 0 }}>
             {isLogin 
               ? 'Log in to continue to your WorkPulse workspace' 
-              : (step === 1 ? 'Join verified engineering and AI talent worldwide' : 'Personalize your professional identity and avatar')}
+              : (step === 1 ? 'Step 1: Enter your name, email and password' : 'Step 2: Choose your gender, profession and avatar')}
           </p>
         </div>
 
@@ -363,7 +411,6 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
         {/* ======================= LOGIN VIEW ======================= */}
         {isLogin && (
           <>
-            {/* Google Sign In */}
             <div id="googleSignInBtn" style={{ width: '100%', minHeight: '44px', display: 'flex', justifyContent: 'center' }}>
               <button
                 type="button"
@@ -394,7 +441,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
               <div style={{ flex: 1, height: '1px', background: '#E2E8F0' }} />
             </div>
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <form onSubmit={handleFinalSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label className="form-label">Email Address</label>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -439,7 +486,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
 
         {/* ======================= SIGNUP STEP 1: CREDENTIALS ======================= */}
         {!isLogin && step === 1 && (
-          <>
+          <div>
             {/* Role Selector */}
             <div style={{ marginBottom: '1.25rem' }}>
               <label className="form-label" style={{ marginBottom: '0.4rem', display: 'block' }}>I want to:</label>
@@ -487,7 +534,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
               </div>
             </div>
 
-            {/* Google Sign-up Button */}
+            {/* Google Button */}
             <div id="googleSignInBtn" style={{ width: '100%', minHeight: '44px', display: 'flex', justifyContent: 'center' }}>
               <button
                 type="button"
@@ -508,7 +555,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
                   cursor: 'pointer'
                 }}
               >
-                <span>Sign up with Google</span>
+                <span>Sign up with Google (Proceeds to Step 2)</span>
               </button>
             </div>
 
@@ -519,7 +566,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
             </div>
 
             {/* Step 1 Form */}
-            <form onSubmit={handleNextStep} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <form onSubmit={handleProceedToStep2} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label className="form-label">Full Name</label>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -580,7 +627,6 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
                   </button>
                 </div>
 
-                {/* Strength Meter */}
                 {password && (
                   <div style={{ marginTop: '0.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: '0.25rem' }}>
@@ -594,23 +640,27 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
                 )}
               </div>
 
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
-                Continue to Profile Setup <ArrowRight size={16} />
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                style={{ width: '100%', padding: '0.85rem', borderRadius: '12px', marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontWeight: 800 }}
+              >
+                Proceed to Step 2: Profile Setup <ArrowRight size={17} />
               </button>
             </form>
-          </>
+          </div>
         )}
 
-        {/* ======================= SIGNUP STEP 2: PROFILE & GENDER-BASED AVATAR ======================= */}
+        {/* ======================= SIGNUP STEP 2: GENDER, PROFESSION & AVATAR ======================= */}
         {!isLogin && step === 2 && (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <form onSubmit={handleFinalSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             
-            {/* 🌟 1. AVATAR PREVIEW & CHANGE PHOTO */}
-            <div style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+            {/* 1. AVATAR PREVIEW & CHANGE PHOTO */}
+            <div style={{ textAlign: 'center', marginBottom: '0.25rem' }}>
               <div style={{ position: 'relative', width: '96px', height: '96px', margin: '0 auto 0.75rem' }}>
                 <img
                   src={avatar}
-                  alt="Profile Avatar"
+                  alt="Avatar Preview"
                   style={{
                     width: '100%',
                     height: '100%',
@@ -636,8 +686,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                    cursor: 'pointer'
                   }}
                   title="Upload Custom Photo"
                 >
@@ -648,7 +697,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/*"
                 onChange={handleCustomPhotoSelect}
                 style={{ display: 'none' }}
               />
@@ -660,7 +709,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
                   background: 'none',
                   border: 'none',
                   color: 'var(--primary, #008080)',
-                  fontSize: '0.8rem',
+                  fontSize: '0.825rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'inline-flex',
@@ -670,12 +719,9 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
               >
                 <Upload size={13} /> {customAvatarUploaded ? 'Change Custom Photo' : 'Upload Your Own Photo'}
               </button>
-              <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
-                (Avatar automatically updates when choosing gender below)
-              </div>
             </div>
 
-            {/* 🌟 2. GENDER SELECTION (MALE / FEMALE / OTHER) */}
+            {/* 2. GENDER SELECTION (AUTO UPDATES AVATAR) */}
             <div>
               <label className="form-label" style={{ marginBottom: '0.4rem', display: 'block' }}>
                 Select Gender:
@@ -744,36 +790,33 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
               </div>
             </div>
 
-            {/* 🌟 3. PROFESSION / SPECIALIZATION FIELD */}
+            {/* 3. PROFESSION */}
             <div>
               <label className="form-label">
-                {role === 'client' ? 'Company Name or Industry Role' : 'Professional Title / Specialization'}
+                {role === 'client' ? 'Company Name or Title' : 'Your Professional Title / Specialization'}
               </label>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                 <Briefcase size={16} color="#64748b" style={{ position: 'absolute', left: '12px' }} />
                 <input
                   required
                   type="text"
-                  placeholder={role === 'client' ? "e.g. Founder at TechCorp / Talent Lead" : "e.g. Full-Stack React & Node Developer"}
+                  placeholder={role === 'client' ? "e.g. Founder at TechCorp / Hiring Lead" : "e.g. Full-Stack React & Node Developer"}
                   value={profession}
                   onChange={(e) => setProfession(e.target.value)}
                   className="form-input"
                   style={{ paddingLeft: '2.4rem' }}
                 />
               </div>
-              <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.35rem' }}>
-                {role === 'client' ? 'Shows on your posted projects.' : 'Shown on your public proposal card to clients.'}
-              </div>
             </div>
 
-            {/* Complete Registration Button */}
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
               className="btn btn-primary"
-              style={{ width: '100%', padding: '0.85rem', borderRadius: '12px', fontWeight: 800, marginTop: '0.5rem', boxShadow: '0 8px 24px rgba(0, 128, 128, 0.3)' }}
+              style={{ width: '100%', padding: '0.85rem', borderRadius: '12px', fontWeight: 800, marginTop: '0.5rem' }}
             >
-              {loading ? 'Finalizing Profile…' : 'Complete Setup & Launch Workspace'}
+              {loading ? 'Creating Account…' : 'Complete Setup & Launch Workspace'}
             </button>
           </form>
         )}
@@ -793,7 +836,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
           </button>
         </div>
 
-        {/* 1-Click Demo Evaluation */}
+        {/* Demo Login */}
         <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #E2E8F0', textAlign: 'center' }}>
           <div style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, marginBottom: '0.5rem' }}>
             ⚡ Instant 1-Click Demo Evaluation
