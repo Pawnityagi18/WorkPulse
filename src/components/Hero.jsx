@@ -2,15 +2,10 @@ import React from 'react';
 import { 
   Sparkles, 
   ArrowRight, 
-  CreditCard, 
-  Activity, 
-  ShoppingBag, 
-  Cpu, 
-  GraduationCap, 
-  Cloud, 
-  ShieldCheck, 
-  Palette,
-  Briefcase
+  Code2, 
+  CheckCircle2, 
+  Zap, 
+  Layers 
 } from 'lucide-react';
 
 export default function Hero({ 
@@ -22,21 +17,23 @@ export default function Hero({
   onSearchSubmit 
 }) {
 
-  // 🌟 Real Industry Sectors in Interactive Bubble Format
-  const SECTOR_BUBBLES = [
-    { id: 'fintech', name: 'FinTech & Banking', icon: CreditCard, color: '#008080', bg: 'rgba(0, 128, 128, 0.1)', pos: 'bubble-pos-1' },
-    { id: 'healthtech', name: 'HealthTech & AI', icon: Activity, color: '#EF4444', bg: 'rgba(239, 68, 68, 0.1)', pos: 'bubble-pos-2' },
-    { id: 'ai-saas', name: 'Generative AI & SaaS', icon: Cpu, color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.1)', pos: 'bubble-pos-3' },
-    { id: 'ecommerce', name: 'E-Commerce & Retail', icon: ShoppingBag, color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)', pos: 'bubble-pos-4' },
-    { id: 'cloud', name: 'Cloud & DevOps', icon: Cloud, color: '#0EA5E9', bg: 'rgba(14, 165, 233, 0.1)', pos: 'bubble-pos-5' },
-    { id: 'edtech', name: 'EdTech & Learning', icon: GraduationCap, color: '#10B981', bg: 'rgba(16, 185, 129, 0.1)', pos: 'bubble-pos-6' },
-    { id: 'cyber', name: 'CyberSecurity & Web3', icon: ShieldCheck, color: '#6366F1', bg: 'rgba(99, 102, 241, 0.1)', pos: 'bubble-pos-7' },
-    { id: 'uiux', name: 'UI/UX & Product Design', icon: Palette, color: '#EC4899', bg: 'rgba(236, 72, 153, 0.1)', pos: 'bubble-pos-8' },
+  // Real Database Skills matching projects in MongoDB
+  const SKILL_BUBBLES = [
+    { id: 'react', name: 'React.js', svg: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/react/react-original.svg', pos: 'bubble-pos-1' },
+    { id: 'python', name: 'Python', svg: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg', pos: 'bubble-pos-2' },
+    { id: 'node', name: 'Node.js', svg: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/nodejs/nodejs-original.svg', pos: 'bubble-pos-3' },
+    { id: 'next', name: 'Next.js', svg: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/nextjs/nextjs-original.svg', pos: 'bubble-pos-4' },
+    { id: 'figma', name: 'Figma', svg: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/figma/figma-original.svg', pos: 'bubble-pos-5' },
+    { id: 'docker', name: 'Docker', svg: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/docker/docker-original.svg', pos: 'bubble-pos-6' },
+    { id: 'ts', name: 'TypeScript', svg: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/typescript/typescript-original.svg', pos: 'bubble-pos-7' },
   ];
 
-  const handleBubbleClick = (sectorName) => {
-    setSearchQuery(sectorName);
-    onSearchSubmit && onSearchSubmit();
+  const handleSkillClick = (skillName) => {
+    setSearchQuery(skillName);
+    setTimeout(() => {
+      const el = document.getElementById('project-list-section') || document.getElementById('projects-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   };
 
   return (
@@ -48,7 +45,7 @@ export default function Hero({
       overflow: 'hidden'
     }}>
       
-      {/* Background Soft Glow Orbs */}
+      {/* Background Soft Orbs */}
       <div className="ambient-glow orb-teal-light" />
       <div className="ambient-glow orb-cyan-light" />
 
@@ -79,7 +76,7 @@ export default function Hero({
                 boxShadow: '0 2px 10px rgba(0, 128, 128, 0.06)'
               }}>
                 <Sparkles size={16} color="#F59E0B" fill="#F59E0B" /> 
-                <span>Empowering Global Sectors • Top 1% Verified Talent</span>
+                <span>WorkPulse Marketplace • Verified Developers & Designers</span>
               </div>
             </div>
 
@@ -91,10 +88,11 @@ export default function Hero({
               letterSpacing: '-0.03em',
               color: 'var(--text-main, #0F172A)'
             }}>
-              Hire Domain Experts Across{' '}
+              Find Creative{' '}
               <span className="shimmer-hero-gradient">
-                Key Global Sectors
+                Freelancers
               </span>
+              <br />For Your Next Big Idea
             </h1>
 
             <p style={{
@@ -104,10 +102,10 @@ export default function Hero({
               lineHeight: 1.6,
               maxWidth: '520px'
             }}>
-              From FinTech and HealthTech to AI, E-Commerce, and Cloud DevOps. Connect with specialized developers and designers backed by 100% milestone escrow protection.
+              Connect with top-rated React developers, AI engineers, and UI/UX designers. Protected by 100% milestone escrow with instant automated matching.
             </p>
 
-            {/* Search Box */}
+            {/* Multi-Input Search Box */}
             <div style={{
               background: '#FFFFFF',
               border: '2px solid var(--primary, #008080)',
@@ -129,7 +127,7 @@ export default function Hero({
                 />
                 <input 
                   type="text" 
-                  placeholder="Search industries: FinTech, AI, Health, Web..." 
+                  placeholder="Search skills: React, Node, Python, Next.js..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
@@ -160,7 +158,7 @@ export default function Hero({
                     padding: '0.5rem'
                   }}
                 >
-                  <option value="all">All Sectors</option>
+                  <option value="all">All Categories</option>
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
@@ -172,17 +170,17 @@ export default function Hero({
                 className="btn btn-primary"
                 style={{ borderRadius: 'var(--radius-full)', padding: '0.75rem 1.5rem', fontWeight: 800 }}
               >
-                Explore Talent <ArrowRight size={17} />
+                Find Jobs <ArrowRight size={17} />
               </button>
             </div>
 
-            {/* Quick Filter Tags */}
+            {/* Popular Skills Tags (Real Database Matching) */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.85rem' }}>
-              <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>Industries:</span>
-              {['FinTech', 'HealthTech', 'E-Commerce', 'AI & SaaS', 'DevOps'].map((tag) => (
+              <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>Popular Skills:</span>
+              {['React.js', 'Next.js', 'Python', 'Node.js', 'Figma', 'Docker'].map((tag) => (
                 <button
                   key={tag}
-                  onClick={() => setSearchQuery(tag)}
+                  onClick={() => handleSkillClick(tag)}
                   style={{
                     background: '#FFFFFF',
                     border: '1px solid var(--border-subtle, #E2E8F0)',
@@ -192,7 +190,16 @@ export default function Hero({
                     fontSize: '0.8rem',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.03)'
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.03)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--primary, #008080)';
+                    e.currentTarget.style.color = 'var(--primary, #008080)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#E2E8F0';
+                    e.currentTarget.style.color = '#475569';
                   }}
                 >
                   {tag}
@@ -201,7 +208,7 @@ export default function Hero({
             </div>
           </div>
 
-          {/* ================= RIGHT COLUMN: ANIMATED SECTOR BUBBLES UNIVERSE ================= */}
+          {/* ================= RIGHT COLUMN: ANIMATED FLOATING SKILL BUBBLES ================= */}
           <div style={{
             position: 'relative',
             minHeight: '460px',
@@ -210,7 +217,7 @@ export default function Hero({
             justifyContent: 'center'
           }}>
             
-            {/* Center Anchor Hub */}
+            {/* Center Anchor Hub Card */}
             <div className="center-hub-card" style={{
               width: '100%',
               maxWidth: '340px',
@@ -235,14 +242,14 @@ export default function Hero({
                 color: '#FFF',
                 boxShadow: '0 8px 20px rgba(0, 128, 128, 0.3)'
               }}>
-                <Briefcase size={28} />
+                <Code2 size={28} />
               </div>
 
               <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0F172A', marginBottom: '0.35rem' }}>
-                Multi-Sector Ecosystem
+                Full-Stack Tech Ecosystem
               </h3>
               <p style={{ fontSize: '0.825rem', color: '#64748B', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-                Connecting specialized engineering & design domain experts across major global sectors.
+                Connecting specialized engineering, AI & design experts with active milestone projects.
               </p>
 
               <div style={{
@@ -256,37 +263,22 @@ export default function Hero({
                 fontSize: '0.75rem',
                 fontWeight: 800
               }}>
-                <Sparkles size={13} fill="#008080" /> 100% Escrow in Every Sector
+                <Zap size={13} fill="#008080" /> 100% Escrow on Every Project
               </div>
             </div>
 
-            {/* 🌟 8 ANIMATED FLOATING SECTOR BUBBLES */}
-            {SECTOR_BUBBLES.map((sec) => {
-              const IconComponent = sec.icon;
-              return (
-                <div
-                  key={sec.id}
-                  onClick={() => handleBubbleClick(sec.name)}
-                  className={`sector-floating-bubble ${sec.pos}`}
-                  title={`Click to search ${sec.name}`}
-                >
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '10px',
-                    background: sec.bg,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: sec.color,
-                    flexShrink: 0
-                  }}>
-                    <IconComponent size={18} />
-                  </div>
-                  <span>{sec.name}</span>
-                </div>
-              );
-            })}
+            {/* 🌟 7 ANIMATED FLOATING SKILL BUBBLES */}
+            {SKILL_BUBBLES.map((bubble) => (
+              <div
+                key={bubble.id}
+                onClick={() => handleSkillClick(bubble.name)}
+                className={`skill-floating-bubble ${bubble.pos}`}
+                title={`Click to view ${bubble.name} jobs`}
+              >
+                <img src={bubble.svg} alt={bubble.name} style={{ width: '24px', height: '24px' }} />
+                <span>{bubble.name}</span>
+              </div>
+            ))}
 
           </div>
 
@@ -295,10 +287,10 @@ export default function Hero({
 
       {/* ================= 100% GPU SMOOTH CSS ANIMATIONS (ZERO LAG) ================= */}
       <style>{`
-        /* Floating Sector Bubble Base */
-        .sector-floating-bubble {
+        /* Floating Skill Bubble Styling */
+        .skill-floating-bubble {
           position: absolute;
-          background: rgba(255, 255, 255, 0.92);
+          background: rgba(255, 255, 255, 0.95);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
           border: 1.5px solid rgba(0, 128, 128, 0.18);
@@ -306,26 +298,26 @@ export default function Hero({
           padding: 0.5rem 1rem;
           display: flex;
           align-items: center;
-          gap: 0.6rem;
+          gap: 0.55rem;
           box-shadow: 0 10px 25px rgba(0, 128, 128, 0.08);
           font-size: 0.825rem;
           font-weight: 800;
           color: #0F172A;
           cursor: pointer;
           will-change: transform;
-          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
           z-index: 4;
           white-space: nowrap;
         }
 
-        .sector-floating-bubble:hover {
-          transform: scale(1.1) !important;
+        .skill-floating-bubble:hover {
+          transform: scale(1.12) !important;
           box-shadow: 0 15px 35px rgba(0, 128, 128, 0.25);
           border-color: #008080;
           background: #FFFFFF;
         }
 
-        /* 🌟 Smooth 60 FPS Floating Keyframes */
+        /* Smooth 60 FPS Keyframes */
         @keyframes floatSmooth1 {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
           50% { transform: translateY(-14px) rotate(1.5deg); }
@@ -346,56 +338,15 @@ export default function Hero({
           50% { transform: translateX(8px) translateY(10px); }
         }
 
-        /* Positions & Assigned Floating Animations */
-        .bubble-pos-1 {
-          top: -15px;
-          left: 5px;
-          animation: floatSmooth1 5s ease-in-out infinite;
-        }
+        /* Bubble Positions */
+        .bubble-pos-1 { top: -10px; left: 5px; animation: floatSmooth1 5s ease-in-out infinite; }
+        .bubble-pos-2 { top: 15px; right: -15px; animation: floatSmooth2 5.5s ease-in-out infinite; }
+        .bubble-pos-3 { bottom: 120px; left: -30px; animation: floatSmooth3 6s ease-in-out infinite; }
+        .bubble-pos-4 { top: 130px; right: -35px; animation: floatSmooth1 6.5s ease-in-out infinite; }
+        .bubble-pos-5 { bottom: -15px; left: 10px; animation: floatSmooth2 5.2s ease-in-out infinite; }
+        .bubble-pos-6 { bottom: 5px; right: 5px; animation: floatSmooth4 5.8s ease-in-out infinite; }
+        .bubble-pos-7 { top: -35px; left: 38%; animation: floatSmooth3 4.8s ease-in-out infinite; }
 
-        .bubble-pos-2 {
-          top: 10px;
-          right: -15px;
-          animation: floatSmooth2 5.5s ease-in-out infinite;
-        }
-
-        .bubble-pos-3 {
-          top: -35px;
-          left: 35%;
-          animation: floatSmooth3 6s ease-in-out infinite;
-        }
-
-        .bubble-pos-4 {
-          top: 130px;
-          right: -35px;
-          animation: floatSmooth1 6.5s ease-in-out infinite;
-        }
-
-        .bubble-pos-5 {
-          bottom: 120px;
-          left: -30px;
-          animation: floatSmooth2 5.2s ease-in-out infinite;
-        }
-
-        .bubble-pos-6 {
-          bottom: -15px;
-          left: 10px;
-          animation: floatSmooth4 5.8s ease-in-out infinite;
-        }
-
-        .bubble-pos-7 {
-          bottom: 0px;
-          right: 5px;
-          animation: floatSmooth3 4.8s ease-in-out infinite;
-        }
-
-        .bubble-pos-8 {
-          bottom: -35px;
-          left: 38%;
-          animation: floatSmooth1 5.4s ease-in-out infinite;
-        }
-
-        /* Headline Gradient Shimmer */
         .shimmer-hero-gradient {
           background: linear-gradient(135deg, #008080 0%, #0EA5E9 50%, #008080 100%);
           background-size: 200% auto;
@@ -409,7 +360,6 @@ export default function Hero({
           to { background-position: 200% center; }
         }
 
-        /* Ambient Orbs */
         .ambient-glow {
           position: absolute;
           border-radius: 50%;
@@ -418,28 +368,15 @@ export default function Hero({
           pointer-events: none;
           z-index: 1;
         }
-        .orb-teal-light {
-          width: 320px;
-          height: 320px;
-          background: #B2DFDB;
-          top: -40px;
-          right: 10%;
-        }
-        .orb-cyan-light {
-          width: 260px;
-          height: 260px;
-          background: #BAE6FD;
-          bottom: 10px;
-          left: 10%;
-        }
+        .orb-teal-light { width: 320px; height: 320px; background: #B2DFDB; top: -40px; right: 10%; }
+        .orb-cyan-light { width: 260px; height: 260px; background: #BAE6FD; bottom: 10px; left: 10%; }
 
         @media (max-width: 768px) {
-          .bubble-pos-3 { display: none !important; }
-          .bubble-pos-8 { display: none !important; }
+          .bubble-pos-7 { display: none !important; }
           .bubble-pos-1 { left: 0px !important; }
           .bubble-pos-2 { right: 0px !important; }
+          .bubble-pos-3 { left: 0px !important; }
           .bubble-pos-4 { right: 0px !important; }
-          .bubble-pos-5 { left: 0px !important; }
         }
       `}</style>
     </div>

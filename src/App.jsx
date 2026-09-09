@@ -9,7 +9,6 @@ import FreelancerModal from './components/FreelancerModal';
 import PostProjectModal from './components/PostProjectModal';
 import AuthPage from './components/AuthPage';
 import Dashboard from './components/Dashboard';
-import AuthGate from './components/AuthGate';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
 import { INITIAL_CATEGORIES as CATEGORIES, INITIAL_PROJECTS, INITIAL_FREELANCERS, INITIAL_PROPOSALS } from './data/mockData';
@@ -28,9 +27,8 @@ import {
 } from './api/client';
 
 export default function App() {
-  // 🌟 REAL URL SYNC ROUTING: Reads initial URL pathname (/login, /signup, /dashboard, etc.)
   const getInitialRoute = () => {
-    const path = window.location.pathname.replace('/', '') || 'explore';
+    const path = window.location.pathname.replace('/', '').toLowerCase();
     if (['explore', 'freelancers', 'dashboard', 'login', 'signup'].includes(path)) {
       return path;
     }
@@ -41,17 +39,15 @@ export default function App() {
   const [userRole, setUserRole] = useState('freelancer');
   const [serverOnline, setServerOnline] = useState(false);
 
-  // Function to change tab AND update browser URL bar
   const setActiveTab = (tab) => {
     setActiveTabState(tab);
     const newPath = tab === 'explore' ? '/' : `/${tab}`;
     if (window.location.pathname !== newPath) {
-      window.history.pushState(null, '', newPath);
+      window.history.pushState({ tab }, '', newPath);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Listen to browser Back / Forward buttons
   useEffect(() => {
     const handlePopState = () => {
       setActiveTabState(getInitialRoute());
@@ -60,7 +56,6 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Authentication State
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem('workpulse_user');
@@ -70,7 +65,6 @@ export default function App() {
     }
   });
 
-  // Projects State
   const [projects, setProjects] = useState(() => {
     try {
       const saved = localStorage.getItem('workpulse_projects');
@@ -80,7 +74,6 @@ export default function App() {
     }
   });
 
-  // Saved/Bookmarked Projects (No fake numbers)
   const [savedProjectIds, setSavedProjectIds] = useState(() => {
     try {
       const saved = localStorage.getItem('workpulse_saved_projects');
@@ -115,13 +108,11 @@ export default function App() {
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState('');
 
-  // Modal Control States
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedFreelancer, setSelectedFreelancer] = useState(null);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // Sync to localStorage
   useEffect(() => {
     try {
       localStorage.setItem('workpulse_projects', JSON.stringify(projects));
@@ -198,6 +189,17 @@ export default function App() {
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
+  };
+
+  // 🌟 BROWSE JOBS RESET HANDLER: CLEARS SEARCH QUERY & SCROLLS TO ALL JOBS
+  const handleBrowseJobs = () => {
+    setSearchQuery('');
+    setSelectedCategory('all');
+    setActiveTab('explore');
+    setTimeout(() => {
+      const el = document.getElementById('project-list-section') || document.getElementById('projects-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
   };
 
   const handleToggleSaveProject = (projectId) => {
@@ -278,7 +280,7 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
-      {/* Top Bar Header */}
+      {/* Top Bar Header with Browse Jobs Reset */}
       <Header 
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -292,12 +294,13 @@ export default function App() {
         onLogout={handleLogout}
         onDeleteAccount={handleLogout}
         onUpdateUser={(u) => setCurrentUser(u)}
+        onBrowseJobs={handleBrowseJobs}
       />
 
-      {/* Main Content Area */}
+      {/* Main Content Area with URL Sync */}
       <main style={{ flex: 1 }}>
         
-        {/* 🌟 1. DEDICATED LOGIN PAGE (/login) */}
+        {/* 1. DEDICATED LOGIN PAGE (/login) */}
         {activeTab === 'login' && (
           <AuthPage 
             mode="login" 
@@ -306,7 +309,7 @@ export default function App() {
           />
         )}
 
-        {/* 🌟 2. DEDICATED SIGNUP PAGE (/signup) */}
+        {/* 2. DEDICATED SIGNUP PAGE (/signup) */}
         {activeTab === 'signup' && (
           <AuthPage 
             mode="signup" 
@@ -325,7 +328,7 @@ export default function App() {
               setSelectedCategory={setSelectedCategory}
               categories={CATEGORIES}
               onSearchSubmit={() => {
-                const el = document.getElementById('project-list-section');
+                const el = document.getElementById('project-list-section') || document.getElementById('projects-section');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
             />
@@ -337,56 +340,39 @@ export default function App() {
               projects={projects}
             />
 
+            {/* 🌟 OPEN JOB BROWSING: ANYONE CAN BROWSE & VIEW ALL JOBS */}
             <div id="project-list-section">
-              {currentUser ? (
-                <ProjectList 
-                  projects={projects}
-                  categories={CATEGORIES}
-                  selectedCategory={selectedCategory}
-                  setSelectedCategory={setSelectedCategory}
-                  searchQuery={searchQuery}
-                  setSearchQuery={setSearchQuery}
-                  budgetRange={budgetRange}
-                  setBudgetRange={setBudgetRange}
-                  urgencyFilter={urgencyFilter}
-                  setUrgencyFilter={setUrgencyFilter}
-                  sortBy={sortBy}
-                  setSortBy={setSortBy}
-                  savedProjects={savedProjectIds}
-                  onToggleSaveProject={handleToggleSaveProject}
-                  onSelectProject={(proj) => setSelectedProject(proj)}
-                  loading={projectsLoading}
-                  error={projectsError}
-                  total={serverOnline ? projectSearchMeta.total : undefined}
-                  currentUser={currentUser}
-                />
-              ) : (
-                <AuthGate
-                  title="Log in to browse jobs"
-                  message="Create a free account to see live project listings and submit proposals."
-                  onLogin={() => setActiveTab('login')}
-                  onSignup={() => setActiveTab('signup')}
-                />
-              )}
+              <ProjectList 
+                projects={projects}
+                categories={CATEGORIES}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                budgetRange={budgetRange}
+                setBudgetRange={setBudgetRange}
+                urgencyFilter={urgencyFilter}
+                setUrgencyFilter={setUrgencyFilter}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+                savedProjects={savedProjectIds}
+                onToggleSaveProject={handleToggleSaveProject}
+                onSelectProject={(proj) => setSelectedProject(proj)}
+                loading={projectsLoading}
+                error={projectsError}
+                total={serverOnline ? projectSearchMeta.total : undefined}
+                currentUser={currentUser}
+              />
             </div>
           </>
         )}
 
         {/* 4. FREELANCERS PAGE (/freelancers) */}
         {activeTab === 'freelancers' && (
-          currentUser ? (
-            <FreelancerList 
-              freelancers={freelancers}
-              onSelectFreelancer={(freelancer) => setSelectedFreelancer(freelancer)}
-            />
-          ) : (
-            <AuthGate
-              title="Log in to find talent"
-              message="Create a free client account to browse freelancer profiles and hire."
-              onLogin={() => setActiveTab('login')}
-              onSignup={() => setActiveTab('signup')}
-            />
-          )
+          <FreelancerList 
+            freelancers={freelancers}
+            onSelectFreelancer={(freelancer) => setSelectedFreelancer(freelancer)}
+          />
         )}
 
         {/* 5. WORKSPACE DASHBOARD (/dashboard) */}
@@ -408,18 +394,21 @@ export default function App() {
               onRefreshContracts={loadContracts}
             />
           ) : (
-            <AuthGate
-              title="Log in to view your workspace"
-              message="Log in to see your proposals, projects, contracts, and messages."
-              onLogin={() => setActiveTab('login')}
-              onSignup={() => setActiveTab('signup')}
-            />
+            <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
+              <h3>Please log in to view your workspace</h3>
+              <button onClick={() => setActiveTab('login')} className="btn btn-primary" style={{ marginTop: '1rem' }}>
+                Log In Now
+              </button>
+            </div>
           )
         )}
       </main>
 
       {/* Footer */}
-      <Footer onNavigate={(tab) => setActiveTab(tab)} />
+      <Footer onNavigate={(tab) => {
+        if (tab === 'explore') handleBrowseJobs();
+        else setActiveTab(tab);
+      }} />
 
       {/* Modals for Projects & Freelancers */}
       {selectedProject && (

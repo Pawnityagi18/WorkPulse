@@ -34,7 +34,8 @@ export default function Header({
   onOpenAuthModal,
   onLogout,
   onDeleteAccount,
-  onUpdateUser
+  onUpdateUser,
+  onBrowseJobs
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -105,6 +106,20 @@ export default function Header({
     }
   };
 
+  // 🌟 BROWSE JOBS CLICK HANDLER (CLEARS SEARCH & SCROLLS TO JOBS)
+  const handleBrowseJobsClick = () => {
+    setMobileMenuOpen(false);
+    if (onBrowseJobs) {
+      onBrowseJobs();
+    } else {
+      setActiveTab('explore');
+      setTimeout(() => {
+        const el = document.getElementById('project-list-section') || document.getElementById('projects-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    }
+  };
+
   const handleNavClick = (tab) => {
     setActiveTab(tab);
     setMobileMenuOpen(false);
@@ -121,7 +136,7 @@ export default function Header({
         
         {/* Brand Logo */}
         <div 
-          onClick={() => handleNavClick('explore')} 
+          onClick={handleBrowseJobsClick} 
           style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}
         >
           <div style={{
@@ -133,20 +148,18 @@ export default function Header({
             alignItems: 'center',
             justifyContent: 'center',
             padding: '2px',
-            boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)'
+            boxShadow: '0 4px 10px rgba(13, 148, 136, 0.2)'
           }}>
             <img 
               src="/logo.jpg" 
-              alt="WorkPulse Logo"
+              alt="WorkPulse"
               style={{
                 width: '100%',
                 height: '100%',
                 borderRadius: '10px',
                 objectFit: 'cover'
               }}
-              onError={(e) => {
-                e.target.style.display = 'none';
-              }}
+              onError={(e) => { e.target.style.display = 'none'; }}
             />
           </div>
           <div>
@@ -180,23 +193,20 @@ export default function Header({
           alignItems: 'center',
           gap: '0.5rem'
         }} className="desktop-only-nav">
+          
+          {/* BROWSE JOBS BUTTON */}
           <button 
-            onClick={() => handleNavClick('explore')}
-            className="glass-nav-link"
+            onClick={handleBrowseJobsClick}
+            className={`btn ${activeTab === 'explore' ? 'btn-secondary' : ''}`}
             style={{ 
-              color: activeTab === 'explore' ? 'var(--primary, #0d9488)' : '#1e293b',
-              background: activeTab === 'explore' ? 'rgba(13, 148, 136, 0.12)' : 'rgba(255, 255, 255, 0.25)',
-              border: activeTab === 'explore' ? '1px solid rgba(13, 148, 136, 0.3)' : '1px solid rgba(255, 255, 255, 0.35)',
+              color: activeTab === 'explore' ? 'var(--primary, #0d9488)' : '#334155',
+              background: activeTab === 'explore' ? 'rgba(13, 148, 136, 0.1)' : 'transparent',
+              border: 'none',
               display: 'flex',
               alignItems: 'center',
               gap: '0.4rem',
-              padding: '0.45rem 0.95rem',
-              borderRadius: '12px',
               fontWeight: 700,
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              backdropFilter: 'blur(8px)',
-              transition: 'all 0.2s ease'
+              cursor: 'pointer'
             }}
           >
             <Search size={16} /> Browse Jobs
@@ -204,58 +214,48 @@ export default function Header({
           
           <button 
             onClick={() => handleNavClick('freelancers')}
-            className="glass-nav-link"
+            className={`btn ${activeTab === 'freelancers' ? 'btn-secondary' : ''}`}
             style={{ 
-              color: activeTab === 'freelancers' ? 'var(--primary, #0d9488)' : '#1e293b',
-              background: activeTab === 'freelancers' ? 'rgba(13, 148, 136, 0.12)' : 'rgba(255, 255, 255, 0.25)',
-              border: activeTab === 'freelancers' ? '1px solid rgba(13, 148, 136, 0.3)' : '1px solid rgba(255, 255, 255, 0.35)',
+              color: activeTab === 'freelancers' ? 'var(--primary, #0d9488)' : '#334155',
+              background: activeTab === 'freelancers' ? 'rgba(13, 148, 136, 0.1)' : 'transparent',
+              border: 'none',
               display: 'flex',
               alignItems: 'center',
               gap: '0.4rem',
-              padding: '0.45rem 0.95rem',
-              borderRadius: '12px',
-              fontWeight: 700,
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              backdropFilter: 'blur(8px)',
-              transition: 'all 0.2s ease'
+              fontWeight: 600,
+              cursor: 'pointer'
             }}
           >
             <UserCheck size={16} /> Find Talent
           </button>
 
-          {/* DASHBOARD: ONLY FOR LOGGED-IN USERS */}
+          {/* DASHBOARD: LOGGED-IN USERS ONLY */}
           {isLoggedIn && (
             <button 
               onClick={() => handleNavClick('dashboard')}
-              className="glass-nav-link"
+              className={`btn ${activeTab === 'dashboard' ? 'btn-secondary' : ''}`}
               style={{ 
-                color: activeTab === 'dashboard' ? 'var(--primary, #0d9488)' : '#1e293b',
-                background: activeTab === 'dashboard' ? 'rgba(13, 148, 136, 0.12)' : 'rgba(255, 255, 255, 0.25)',
-                border: activeTab === 'dashboard' ? '1px solid rgba(13, 148, 136, 0.3)' : '1px solid rgba(255, 255, 255, 0.35)',
+                color: activeTab === 'dashboard' ? 'var(--primary, #0d9488)' : '#334155',
+                background: activeTab === 'dashboard' ? 'rgba(13, 148, 136, 0.1)' : 'transparent',
+                border: 'none',
+                position: 'relative',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.4rem',
-                padding: '0.45rem 0.95rem',
-                borderRadius: '12px',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                position: 'relative',
-                backdropFilter: 'blur(8px)',
-                transition: 'all 0.2s ease'
+                fontWeight: 600,
+                cursor: 'pointer'
               }}
             >
               <LayoutDashboard size={16} /> Workspace
               {proposalsCount > 0 && (
                 <span style={{
                   position: 'absolute',
-                  top: '5px',
-                  right: '5px',
+                  top: '4px',
+                  right: '4px',
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  backgroundColor: '#10b981'
+                  backgroundColor: 'var(--accent-emerald, #10b981)'
                 }} />
               )}
             </button>
@@ -270,16 +270,16 @@ export default function Header({
             <>
               {/* SAVED ITEMS */}
               <div 
-                onClick={() => handleNavClick('explore')}
+                onClick={handleBrowseJobsClick}
                 style={{
                   position: 'relative',
                   cursor: 'pointer',
                   padding: '0.5rem',
-                  color: '#475569',
+                  color: '#64748b',
                   borderRadius: '50%',
                   transition: 'color 0.2s ease'
                 }}
-                title="Saved Jobs"
+                title="Bookmarked Projects"
               >
                 <Bookmark size={20} />
                 {savedCount > 0 && (
@@ -307,7 +307,7 @@ export default function Header({
               <div style={{ position: 'relative' }}>
                 <div
                   onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
-                  style={{ position: 'relative', cursor: 'pointer', padding: '0.5rem', color: '#475569' }}
+                  style={{ position: 'relative', cursor: 'pointer', padding: '0.5rem', color: '#64748b' }}
                 >
                   <Bell size={20} />
                   {unreadCount > 0 && (
@@ -339,11 +339,10 @@ export default function Header({
                     width: '320px',
                     maxHeight: '400px',
                     overflowY: 'auto',
-                    background: 'rgba(255, 255, 255, 0.95)',
-                    backdropFilter: 'blur(16px)',
-                    border: '1px solid rgba(255,255,255,0.5)',
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
                     borderRadius: '16px',
-                    boxShadow: '0 15px 35px rgba(0,0,0,0.12)',
+                    boxShadow: '0 15px 35px rgba(0,0,0,0.1)',
                     zIndex: 1000
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', borderBottom: '1px solid #f1f5f9' }}>
@@ -361,7 +360,7 @@ export default function Header({
                         <div
                           key={n._id}
                           onClick={() => handleNotifClick(n)}
-                          style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', background: n.read ? 'transparent' : 'rgba(13, 148, 136, 0.08)' }}
+                          style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', background: n.read ? 'transparent' : 'rgba(13, 148, 136, 0.05)' }}
                         >
                           <div style={{ fontSize: '0.82rem', color: '#334155' }}>{n.message}</div>
                           <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.2rem' }}>{new Date(n.createdAt).toLocaleString()}</div>
@@ -377,7 +376,7 @@ export default function Header({
                 <button 
                   onClick={onOpenPostModal}
                   className="btn btn-primary btn-sm"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1.1rem', borderRadius: '12px', fontWeight: 700, boxShadow: '0 4px 12px rgba(13, 148, 136, 0.3)' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 1rem', borderRadius: '10px', fontWeight: 700 }}
                 >
                   <PlusCircle size={16} /> Post Job
                 </button>
@@ -394,9 +393,8 @@ export default function Header({
                     cursor: 'pointer',
                     padding: '0.35rem 0.65rem',
                     borderRadius: '20px',
-                    background: 'rgba(255, 255, 255, 0.4)',
-                    border: '1px solid rgba(255, 255, 255, 0.6)',
-                    backdropFilter: 'blur(8px)'
+                    background: 'rgba(0, 0, 0, 0.04)',
+                    border: '1px solid #e2e8f0'
                   }}
                 >
                   <img 
@@ -404,7 +402,7 @@ export default function Header({
                     alt={currentUser.name}
                     style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }}
                   />
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main, #0f172a)' }}>
                     {currentUser.name.split(' ')[0]}
                   </span>
                   <ChevronDown size={14} color="#64748b" />
@@ -416,12 +414,11 @@ export default function Header({
                     top: '120%',
                     right: 0,
                     width: '240px',
-                    background: 'rgba(255, 255, 255, 0.95)',
-                    backdropFilter: 'blur(16px)',
-                    border: '1px solid rgba(255,255,255,0.5)',
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
                     borderRadius: '16px',
                     padding: '0.75rem',
-                    boxShadow: '0 15px 35px rgba(0,0,0,0.12)',
+                    boxShadow: '0 15px 35px rgba(0,0,0,0.1)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '0.5rem',
@@ -430,7 +427,7 @@ export default function Header({
                     <div style={{ paddingBottom: '0.5rem', borderBottom: '1px solid #f1f5f9' }}>
                       <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>{currentUser.name}</div>
                       <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{currentUser.email}</div>
-                      <span style={{ display: 'inline-block', marginTop: '0.4rem', padding: '2px 8px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 700, background: isClient ? 'rgba(16, 185, 129, 0.15)' : 'rgba(13, 148, 136, 0.15)', color: isClient ? '#059669' : '#0d9488' }}>
+                      <span className="badge badge-category" style={{ marginTop: '0.35rem' }}>
                         Mode: {isClient ? 'Employer' : 'Freelancer'}
                       </span>
                     </div>
@@ -438,7 +435,7 @@ export default function Header({
                     <button 
                       onClick={() => { handleNavClick('dashboard'); setProfileDropdownOpen(false); }}
                       className="btn btn-secondary btn-sm"
-                      style={{ justifyContent: 'flex-start', color: '#334155', background: 'transparent' }}
+                      style={{ justifyContent: 'flex-start', color: '#334155' }}
                     >
                       <LayoutDashboard size={14} /> My Workspace
                     </button>
@@ -447,7 +444,7 @@ export default function Header({
                       onClick={() => avatarInputRef.current?.click()}
                       disabled={uploadingAvatar}
                       className="btn btn-secondary btn-sm"
-                      style={{ justifyContent: 'flex-start', color: '#334155', background: 'transparent' }}
+                      style={{ justifyContent: 'flex-start', color: '#334155' }}
                     >
                       <Camera size={14} /> {uploadingAvatar ? 'Uploading…' : 'Change Photo'}
                     </button>
@@ -462,7 +459,7 @@ export default function Header({
                     <button 
                       onClick={() => { onLogout(); setProfileDropdownOpen(false); }}
                       className="btn btn-secondary btn-sm"
-                      style={{ justifyContent: 'flex-start', color: '#334155', background: 'transparent' }}
+                      style={{ justifyContent: 'flex-start', color: '#334155' }}
                     >
                       <LogOut size={14} /> Log Out
                     </button>
@@ -484,14 +481,14 @@ export default function Header({
               <button 
                 onClick={() => handleNavClick('login')}
                 className="btn btn-secondary btn-sm"
-                style={{ color: '#1e293b', fontWeight: 700, background: 'rgba(255, 255, 255, 0.3)', border: '1px solid rgba(255, 255, 255, 0.5)', backdropFilter: 'blur(8px)' }}
+                style={{ color: '#334155', fontWeight: 600 }}
               >
                 <LogIn size={15} /> Log In
               </button>
               <button 
                 onClick={() => handleNavClick('signup')}
                 className="btn btn-primary btn-sm"
-                style={{ fontWeight: 700, boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)' }}
+                style={{ fontWeight: 700 }}
               >
                 <UserPlus size={15} /> Sign Up
               </button>
@@ -499,21 +496,20 @@ export default function Header({
           )}
         </div>
 
-        {/* MOBILE HAMBURGER TOGGLE BUTTON */}
+        {/* MOBILE HAMBURGER BUTTON */}
         <button 
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           style={{
             display: 'none',
-            background: 'rgba(255, 255, 255, 0.4)',
-            border: '1px solid rgba(255, 255, 255, 0.6)',
+            background: 'rgba(0, 0, 0, 0.05)',
+            border: '1px solid #e2e8f0',
             color: '#0f172a',
             width: '40px',
             height: '40px',
             borderRadius: '10px',
             alignItems: 'center',
             justifyContent: 'center',
-            cursor: 'pointer',
-            backdropFilter: 'blur(8px)'
+            cursor: 'pointer'
           }}
           className="mobile-hamburger-btn"
           aria-label="Toggle Navigation"
@@ -522,28 +518,27 @@ export default function Header({
         </button>
       </div>
 
-      {/* MOBILE SLIDE-DOWN DRAWER MENU */}
+      {/* MOBILE MENU */}
       {mobileMenuOpen && (
         <div style={{
-          background: 'rgba(255, 255, 255, 0.92)',
-          backdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.5)',
+          background: 'rgba(255, 255, 255, 0.96)',
+          backdropFilter: 'blur(16px)',
+          borderBottom: '1px solid #e2e8f0',
           padding: '1.25rem',
           display: 'flex',
           flexDirection: 'column',
-          gap: '0.75rem',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.05)'
+          gap: '0.75rem'
         }}>
           <button 
-            onClick={() => handleNavClick('explore')}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'explore' ? 'rgba(13, 148, 136, 0.12)' : 'transparent', color: activeTab === 'explore' ? '#0d9488' : '#1e293b', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
+            onClick={handleBrowseJobsClick}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'explore' ? 'rgba(13, 148, 136, 0.1)' : 'transparent', color: activeTab === 'explore' ? '#0d9488' : '#334155', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
           >
             <Search size={18} /> Browse Jobs
           </button>
 
           <button 
             onClick={() => handleNavClick('freelancers')}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'freelancers' ? 'rgba(13, 148, 136, 0.12)' : 'transparent', color: activeTab === 'freelancers' ? '#0d9488' : '#1e293b', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'freelancers' ? 'rgba(13, 148, 136, 0.1)' : 'transparent', color: activeTab === 'freelancers' ? '#0d9488' : '#334155', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
           >
             <UserCheck size={18} /> Find Talent
           </button>
@@ -552,7 +547,7 @@ export default function Header({
             <>
               <button 
                 onClick={() => handleNavClick('dashboard')}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'dashboard' ? 'rgba(13, 148, 136, 0.12)' : 'transparent', color: activeTab === 'dashboard' ? '#0d9488' : '#1e293b', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'dashboard' ? 'rgba(13, 148, 136, 0.1)' : 'transparent', color: activeTab === 'dashboard' ? '#0d9488' : '#334155', border: 'none', borderRadius: '10px', fontWeight: 700, textAlign: 'left', fontSize: '0.95rem' }}
               >
                 <LayoutDashboard size={18} /> My Workspace
               </button>
@@ -579,7 +574,7 @@ export default function Header({
               <button 
                 onClick={() => handleNavClick('login')}
                 className="btn btn-secondary" 
-                style={{ flex: 1, justifyContent: 'center', background: 'rgba(255,255,255,0.4)' }}
+                style={{ flex: 1, justifyContent: 'center' }}
               >
                 Log In
               </button>
@@ -595,41 +590,29 @@ export default function Header({
         </div>
       )}
 
-      {/* 🌟 100% PURE FROSTED GLASS CSS OVERRIDE */}
+      {/* CSS OVERRIDE */}
       <style>{`
         header.workpulse-pure-glass-nav {
           position: sticky !important;
           top: 0 !important;
           z-index: 900 !important;
-          background: rgba(255, 255, 255, 0.2) !important;
-          background-color: rgba(255, 255, 255, 0.2) !important;
-          backdrop-filter: blur(20px) saturate(180%) !important;
-          -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.45) !important;
-          box-shadow: 0 4px 30px rgba(0, 0, 0, 0.04) !important;
+          background: rgba(255, 255, 255, 0.82) !important;
+          background-color: rgba(255, 255, 255, 0.82) !important;
+          backdrop-filter: blur(16px) saturate(180%) !important;
+          -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+          border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
         }
 
         @media (min-width: 768px) {
-          .desktop-only-nav {
-            display: flex !important;
-          }
-          .desktop-only-actions {
-            display: flex !important;
-          }
-          .mobile-hamburger-btn {
-            display: none !important;
-          }
+          .desktop-only-nav { display: flex !important; }
+          .desktop-only-actions { display: flex !important; }
+          .mobile-hamburger-btn { display: none !important; }
         }
         @media (max-width: 767px) {
-          .desktop-only-nav {
-            display: none !important;
-          }
-          .desktop-only-actions {
-            display: none !important;
-          }
-          .mobile-hamburger-btn {
-            display: flex !important;
-          }
+          .desktop-only-nav { display: none !important; }
+          .desktop-only-actions { display: none !important; }
+          .mobile-hamburger-btn { display: flex !important; }
         }
       `}</style>
     </header>
