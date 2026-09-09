@@ -296,8 +296,8 @@ export default function App() {
         onDeleteAccount={handleLogout}
         onUpdateUser={(u) => setCurrentUser(u)}
         onBrowseJobs={handleBrowseJobs}
-        searchQuery={searchQuery}          {/* 🌟 LINKEDIN NAVBAR SEARCH */}
-        setSearchQuery={setSearchQuery}    {/* 🌟 REALTIME SEARCH HANDLER */}
+        searchQuery={searchQuery}          
+         setSearchQuery={setSearchQuery}   
       />
     
 
