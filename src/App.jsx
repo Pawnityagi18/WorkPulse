@@ -12,7 +12,7 @@ import Dashboard from './components/Dashboard';
 import AuthGate from './components/AuthGate';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
-import { INITIAL_CATEGORIES as CATEGORIES, INITIAL_PROJECTS, INITIAL_FREELANCERS, INITIAL_PROPOSALS } from './data/mockData';
+import { INITIAL_CATEGORIES as CATEGORIES } from './data/mockData';
 import { 
   apiFetchProjects, 
   apiCreateProject, 
@@ -23,12 +23,14 @@ import {
   apiFetchMe,
   apiSearchProjects,
   apiRejectProposal,
+  apiFetchFreelancers,
+  apiDirectHire,
   setAuthToken,
   checkServerHealth 
 } from './api/client';
 
 export default function App() {
-  // 🌟 REAL URL SYNC ROUTING: Reads initial URL pathname (/login, /signup, /dashboard, etc.)
+  // 🌟 REAL URL ROUTING: Reads initial URL pathname (/login, /signup, /dashboard, etc.)
   const getInitialRoute = () => {
     const path = window.location.pathname.replace('/', '').toLowerCase();
     if (['explore', 'freelancers', 'dashboard', 'login', 'signup'].includes(path)) {
@@ -70,17 +72,13 @@ export default function App() {
     }
   });
 
-  // Projects State
-  const [projects, setProjects] = useState(() => {
-    try {
-      const saved = localStorage.getItem('workpulse_projects');
-      return saved ? JSON.parse(saved) : INITIAL_PROJECTS;
-    } catch {
-      return INITIAL_PROJECTS;
-    }
-  });
+  // Real Database Entities (No fake fallback storage)
+  const [projects, setProjects] = useState([]);
+  const [freelancers, setFreelancers] = useState([]);
+  const [proposals, setProposals] = useState([]);
+  const [contracts, setContracts] = useState([]);
 
-  // Bookmarked Projects (Empty array default, no fake 2 badge)
+  // Bookmarked Project IDs (Empty default, no fake 2 badge)
   const [savedProjectIds, setSavedProjectIds] = useState(() => {
     try {
       const saved = localStorage.getItem('workpulse_saved_projects');
@@ -91,19 +89,6 @@ export default function App() {
       return [];
     }
   });
-
-  const [freelancers] = useState(INITIAL_FREELANCERS);
-
-  const [proposals, setProposals] = useState(() => {
-    try {
-      const saved = localStorage.getItem('workpulse_proposals');
-      return saved ? JSON.parse(saved) : INITIAL_PROPOSALS;
-    } catch {
-      return INITIAL_PROPOSALS;
-    }
-  });
-
-  const [contracts, setContracts] = useState([]);
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -121,25 +106,14 @@ export default function App() {
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // Sync state to LocalStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('workpulse_projects', JSON.stringify(projects));
-    } catch (e) {}
-  }, [projects]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('workpulse_proposals', JSON.stringify(proposals));
-    } catch (e) {}
-  }, [proposals]);
-
+  // Sync bookmarks to localStorage
   useEffect(() => {
     try {
       localStorage.setItem('workpulse_saved_projects', JSON.stringify(savedProjectIds));
     } catch (e) {}
   }, [savedProjectIds]);
 
+  // Sync logged in user to localStorage
   useEffect(() => {
     try {
       if (currentUser) {
@@ -151,10 +125,24 @@ export default function App() {
   }, [currentUser]);
 
   const loadContracts = async () => {
-    const list = await apiFetchContracts();
-    setContracts(list || []);
+    try {
+      const list = await apiFetchContracts();
+      setContracts(list || []);
+    } catch {
+      setContracts([]);
+    }
   };
 
+  const loadFreelancers = async () => {
+    try {
+      const list = await apiFetchFreelancers();
+      setFreelancers(list || []);
+    } catch {
+      setFreelancers([]);
+    }
+  };
+
+  // Initial Full-Stack API Sync
   useEffect(() => {
     const initServerSync = async () => {
       const isOnline = await checkServerHealth();
@@ -165,12 +153,12 @@ export default function App() {
           setCurrentUser(me);
           setUserRole(me.role);
         }
-        const remoteProjects = await apiFetchProjects(INITIAL_PROJECTS);
-        if (remoteProjects && remoteProjects.length > 0) setProjects(remoteProjects);
-        const remoteProposals = await apiFetchProposals(INITIAL_PROPOSALS);
-        if (remoteProposals && remoteProposals.length > 0) setProposals(remoteProposals);
-        const remoteContracts = await apiFetchContracts();
-        setContracts(remoteContracts || []);
+        const remoteProjects = await apiFetchProjects();
+        setProjects(remoteProjects || []);
+        const remoteProposals = await apiFetchProposals();
+        setProposals(remoteProposals || []);
+        loadContracts();
+        loadFreelancers();
       }
     };
     initServerSync();
@@ -182,10 +170,12 @@ export default function App() {
     }
   }, [currentUser]);
 
+  // Real Database Search & Filtering (Debounced)
   useEffect(() => {
     if (!serverOnline) return;
     const timer = setTimeout(async () => {
-      setProjectsLoading(true); setProjectsError('');
+      setProjectsLoading(true); 
+      setProjectsError('');
       try {
         const result = await apiSearchProjects({ 
           search: searchQuery, 
@@ -226,11 +216,12 @@ export default function App() {
     setSavedProjectIds(prev => {
       const isSaved = prev.includes(projectId);
       const next = isSaved ? prev.filter(id => id !== projectId) : [...prev, projectId];
-      showToast(isSaved ? 'Removed from saved' : 'Project saved to bookmarks!', 'info');
+      showToast(isSaved ? 'Removed from saved projects' : 'Project saved to bookmarks!', 'info');
       return next;
     });
   };
 
+  // Create Project: Strict Real Backend Handling
   const handleCreateProject = async (newProjData) => {
     if (!currentUser || currentUser.role !== 'client') {
       setIsPostModalOpen(false);
@@ -262,6 +253,7 @@ export default function App() {
     }
   };
 
+  // Submit Proposal: Strict Real Backend Handling
   const handleSubmitProposal = async (proposalData) => {
     if (!currentUser || currentUser.role !== 'freelancer') {
       setSelectedProject(null);
@@ -286,14 +278,15 @@ export default function App() {
     }
   };
 
+  // Accept Proposal: Strict Real Backend Handling (NO FAKE SUCCESS)
   const handleAcceptProposal = async (proposalId) => {
     try {
       await apiAcceptProposal(proposalId);
       setProposals(prev => prev.map(p => (p._id === proposalId || p.id === proposalId) ? { ...p, status: 'Accepted' } : p));
       await loadContracts();
-      showToast('🎉 Proposal accepted! Escrow contract initialized.', 'success');
+      showToast('🎉 Proposal accepted! Escrow contract initialized successfully.', 'success');
     } catch (err) {
-      showToast('Contract Accepted!', 'success');
+      showToast(err.message || 'Failed to accept proposal on server', 'error');
     }
   };
 
@@ -303,7 +296,28 @@ export default function App() {
       setProposals(prev => prev.map(p => (p._id === proposalId || p.id === proposalId) ? { ...p, status: 'Declined' } : p));
       showToast('Proposal declined.', 'info');
     } catch (error) { 
-      showToast('Could not decline', 'error'); 
+      showToast(error.message || 'Could not decline proposal', 'error'); 
+    }
+  };
+
+  // Direct Hire: Real Backend Call
+  const handleDirectHire = async (hireData) => {
+    if (!currentUser) {
+      setSelectedFreelancer(null);
+      setActiveTab('login');
+      return;
+    }
+    if (currentUser.role !== 'client') {
+      showToast('Only employers/clients can hire freelancers directly.', 'error');
+      return;
+    }
+    try {
+      await apiDirectHire(selectedFreelancer?._id || selectedFreelancer?.id, hireData);
+      setSelectedFreelancer(null);
+      await loadContracts();
+      showToast(`🎉 Direct Hire contract sent to ${selectedFreelancer.name}!`, 'success');
+    } catch (err) {
+      showToast(err.message || 'Failed to send direct hire offer', 'error');
     }
   };
 
@@ -312,6 +326,7 @@ export default function App() {
     setUserRole(userObj.role);
     showToast(msg || `Welcome back, ${userObj.name}!`);
     loadContracts();
+    loadFreelancers();
   };
 
   const handleLogout = () => {
@@ -325,7 +340,7 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
-      {/* 🌟 TOP NAVBAR (Search bar only renders here when logged in) */}
+      {/* 🌟 TOP NAVBAR (LinkedIn Search only visible when logged in) */}
       <Header 
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -374,7 +389,7 @@ export default function App() {
               currentUser={currentUser} 
             />
 
-            {/* Popular Categories Preview with Live Project Counts */}
+            {/* Popular Categories with Real Projects Count */}
             <CategoryGrid 
               categories={CATEGORIES}
               selectedCategory={selectedCategory}
@@ -382,7 +397,7 @@ export default function App() {
               projects={projects}
             />
 
-            {/* 🌟 GATED JOBS FEED: ONLY LOGGED-IN USERS CAN VIEW LIVE JOBS */}
+            {/* 🌟 GATED JOBS: ONLY LOGGED-IN USERS CAN VIEW LIVE JOBS */}
             <div id="project-list-section">
               {currentUser ? (
                 <ProjectList 
@@ -407,7 +422,7 @@ export default function App() {
                   currentUser={currentUser}
                 />
               ) : (
-                /* Public Landing Banner for Logged-out Visitors */
+                /* Public Landing Banner */
                 <AuthGate
                   title="Log in to explore active jobs"
                   message="Join 28,000+ top engineering and design talent to view live project briefs and submit proposals."
@@ -471,7 +486,7 @@ export default function App() {
         else setActiveTab(tab);
       }} />
 
-      {/* Modals */}
+      {/* Modals for Projects & Freelancers */}
       {selectedProject && (
         <ProjectModal 
           project={selectedProject}
@@ -486,10 +501,7 @@ export default function App() {
         <FreelancerModal 
           freelancer={selectedFreelancer}
           onClose={() => setSelectedFreelancer(null)}
-          onDirectHire={(hireData) => {
-            setSelectedFreelancer(null);
-            showToast(`Direct Hire Offer sent to ${selectedFreelancer.name}!`);
-          }}
+          onDirectHire={handleDirectHire}
         />
       )}
 
