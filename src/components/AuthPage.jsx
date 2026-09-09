@@ -1,21 +1,60 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Mail, Lock, User, Briefcase, Code } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, User, Briefcase, Code, Eye, EyeOff, Sparkles, Check, Key } from 'lucide-react';
 import { apiLogin, apiSignup } from '../api/client';
 
 export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess }) {
   const isLogin = mode === 'login';
   
-  const [role, setRole] = useState('freelancer'); // 'freelancer' | 'client'
+  const [role, setRole] = useState('freelancer');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // 🌟 Google Cloud Console Credentials wala Client ID yahan paste karein:
   const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
 
-  // Google Identity Services (GIS) Load & Render for BOTH Login & Signup
+  // Password Strength Calculation
+  const hasMinLength = password.length >= 8;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+  const strengthScore = [hasMinLength, hasUppercase, hasNumber, hasSpecial].filter(Boolean).length;
+  
+  const getStrengthLabel = () => {
+    if (!password) return { text: '', color: '#94a3b8', width: '0%' };
+    if (strengthScore <= 1) return { text: 'Weak', color: '#ef4444', width: '25%' };
+    if (strengthScore === 2) return { text: 'Fair', color: '#f59e0b', width: '50%' };
+    if (strengthScore === 3) return { text: 'Good', color: '#3b82f6', width: '75%' };
+    return { text: 'Strong (Secure)', color: '#10b981', width: '100%' };
+  };
+
+  const strength = getStrengthLabel();
+
+  // One-Click Generate Strong Password
+  const handleSuggestStrongPassword = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz';
+    const caps = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const nums = '0123456789';
+    const syms = '!@#$%&*';
+
+    let gen = '';
+    gen += caps[Math.floor(Math.random() * caps.length)];
+    gen += nums[Math.floor(Math.random() * nums.length)];
+    gen += syms[Math.floor(Math.random() * syms.length)];
+
+    const all = chars + caps + nums + syms;
+    for (let i = 0; i < 11; i++) {
+      gen += all[Math.floor(Math.random() * all.length)];
+    }
+
+    setPassword(gen);
+    setShowPassword(true); // Auto show so user can see it
+  };
+
+  // Google Identity Services (GIS) Load & Render
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://accounts.google.com/gsi/client';
@@ -30,10 +69,9 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
           callback: handleGoogleResponse
         });
 
-        // Google Button Container
         const btnContainer = document.getElementById('googleSignInBtn');
         if (btnContainer) {
-          btnContainer.innerHTML = ''; // Clear previous button
+          btnContainer.innerHTML = '';
           window.google.accounts.id.renderButton(btnContainer, {
             theme: 'outline',
             size: 'large',
@@ -53,7 +91,6 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
     };
   }, [isLogin, role]);
 
-  // Real Google Auth Response: Decodes real Google Name, Email, and Avatar
   const handleGoogleResponse = (response) => {
     try {
       setLoading(true);
@@ -67,13 +104,12 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
       );
       const payload = JSON.parse(jsonPayload);
 
-      // Real user details extracted from Google
       const realGoogleUser = {
         _id: 'google-' + payload.sub,
         name: payload.name,
         email: payload.email,
         avatar: payload.picture,
-        role: role, // Chosen role (Client or Freelancer)
+        role: role,
         verified: true
       };
 
@@ -89,7 +125,6 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
     }
   };
 
-  // Fallback Google Sign-in if GIS script is loading
   const handleFallbackGoogle = () => {
     const simulatedName = name.trim() || 'Google User';
     const simulatedEmail = email.trim() || 'user@gmail.com';
@@ -107,10 +142,16 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
     onNavigate('explore');
   };
 
-  // Standard Form Submit Handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
+
+    // Signup password strength verification
+    if (!isLogin && strengthScore < 3) {
+      setErrorMsg('Please choose a stronger password (at least 8 characters with numbers & capital letters).');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -134,7 +175,6 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
     }
   };
 
-  // 1-Click Demo Evaluation Shortcuts
   const handleDemoLogin = (demoRole) => {
     const demoUser = demoRole === 'client' 
       ? { _id: 'demo-client-1', name: 'Demo Employer', email: 'client.demo@workpulse.com', role: 'client', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150', isDemo: true }
@@ -196,7 +236,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
           <p style={{ color: 'var(--text-muted, #64748b)', fontSize: '0.875rem', margin: 0 }}>
             {isLogin 
               ? 'Log in to continue to your WorkPulse workspace' 
-              : 'Join over 28,000+ top verified engineering and AI talent'}
+              : 'Join top verified engineering and AI talent worldwide'}
           </p>
         </div>
 
@@ -216,7 +256,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
           </div>
         )}
 
-        {/* 🌟 SIGNUP ONLY: ROLE SELECTOR BEFORE GOOGLE AUTH */}
+        {/* ROLE SELECTOR ON SIGNUP */}
         {!isLogin && (
           <div style={{ marginBottom: '1.25rem' }}>
             <label className="form-label" style={{ marginBottom: '0.4rem', display: 'block' }}>
@@ -267,9 +307,8 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
           </div>
         )}
 
-        {/* 🌟 GOOGLE POPUP BUTTON CONTAINER (FOR BOTH LOGIN & SIGNUP) */}
+        {/* GOOGLE POPUP BUTTON */}
         <div id="googleSignInBtn" style={{ width: '100%', minHeight: '44px', display: 'flex', justifyContent: 'center' }}>
-          {/* Fallback button if Google script is loading */}
           <button
             type="button"
             onClick={handleFallbackGoogle}
@@ -356,19 +395,78 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
               <label className="form-label" style={{ margin: 0 }}>Password</label>
+              
+              {/* 🌟 ONE-CLICK STRONG PASSWORD GENERATOR ON SIGNUP */}
+              {!isLogin ? (
+                <button
+                  type="button"
+                  onClick={handleSuggestStrongPassword}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--primary, #008080)',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem'
+                  }}
+                >
+                  <Sparkles size={12} color="#F59E0B" fill="#F59E0B" /> Suggest Strong Password
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => alert('Please check your registered email for password reset')}
+                  style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Forgot Password?
+                </button>
+              )}
             </div>
+
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <Lock size={16} color="#64748b" style={{ position: 'absolute', left: '12px' }} />
               <input
                 required
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="form-input"
-                style={{ paddingLeft: '2.4rem' }}
+                style={{ paddingLeft: '2.4rem', paddingRight: '2.5rem' }}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: 0
+                }}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
+
+            {/* 🌟 LIVE PASSWORD STRENGTH METER (ON SIGNUP) */}
+            {!isLogin && password && (
+              <div style={{ marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: '0.25rem' }}>
+                  <span style={{ color: '#64748b' }}>Password Strength:</span>
+                  <span style={{ color: strength.color, fontWeight: 700 }}>{strength.text}</span>
+                </div>
+                {/* Visual Bar */}
+                <div style={{ width: '100%', height: '4px', background: '#E2E8F0', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ width: strength.width, height: '100%', background: strength.color, transition: 'all 0.3s ease' }} />
+                </div>
+              </div>
+            )}
           </div>
 
           <button
