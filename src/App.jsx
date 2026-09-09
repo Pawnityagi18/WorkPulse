@@ -9,6 +9,7 @@ import FreelancerModal from './components/FreelancerModal';
 import PostProjectModal from './components/PostProjectModal';
 import AuthPage from './components/AuthPage';
 import Dashboard from './components/Dashboard';
+import AuthGate from './components/AuthGate';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
 import { INITIAL_CATEGORIES as CATEGORIES, INITIAL_PROJECTS, INITIAL_FREELANCERS, INITIAL_PROPOSALS } from './data/mockData';
@@ -27,6 +28,7 @@ import {
 } from './api/client';
 
 export default function App() {
+  // 🌟 REAL URL SYNC ROUTING: Reads initial URL pathname (/login, /signup, /dashboard, etc.)
   const getInitialRoute = () => {
     const path = window.location.pathname.replace('/', '').toLowerCase();
     if (['explore', 'freelancers', 'dashboard', 'login', 'signup'].includes(path)) {
@@ -39,6 +41,7 @@ export default function App() {
   const [userRole, setUserRole] = useState('freelancer');
   const [serverOnline, setServerOnline] = useState(false);
 
+  // Updates activeTab and synchronizes browser address bar
   const setActiveTab = (tab) => {
     setActiveTabState(tab);
     const newPath = tab === 'explore' ? '/' : `/${tab}`;
@@ -48,6 +51,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Listen to browser Back / Forward buttons
   useEffect(() => {
     const handlePopState = () => {
       setActiveTabState(getInitialRoute());
@@ -56,6 +60,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  // Authentication State
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem('workpulse_user');
@@ -65,6 +70,7 @@ export default function App() {
     }
   });
 
+  // Projects State
   const [projects, setProjects] = useState(() => {
     try {
       const saved = localStorage.getItem('workpulse_projects');
@@ -74,6 +80,7 @@ export default function App() {
     }
   });
 
+  // Bookmarked Projects (Empty array default, no fake 2 badge)
   const [savedProjectIds, setSavedProjectIds] = useState(() => {
     try {
       const saved = localStorage.getItem('workpulse_saved_projects');
@@ -108,11 +115,13 @@ export default function App() {
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState('');
 
+  // Modals & Toast State
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedFreelancer, setSelectedFreelancer] = useState(null);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
+  // Sync state to LocalStorage
   useEffect(() => {
     try {
       localStorage.setItem('workpulse_projects', JSON.stringify(projects));
@@ -178,11 +187,22 @@ export default function App() {
     const timer = setTimeout(async () => {
       setProjectsLoading(true); setProjectsError('');
       try {
-        const result = await apiSearchProjects({ search: searchQuery, category: selectedCategory, maxBudget: budgetRange, urgency: urgencyFilter, sort: sortBy, page: 1, limit: 12 });
+        const result = await apiSearchProjects({ 
+          search: searchQuery, 
+          category: selectedCategory, 
+          maxBudget: budgetRange, 
+          urgency: urgencyFilter, 
+          sort: sortBy, 
+          page: 1, 
+          limit: 12 
+        });
         setProjects(result.projects || []);
         setProjectSearchMeta({ total: result.total, page: result.page, pages: result.pages });
-      } catch (error) { setProjectsError(error.message); }
-      finally { setProjectsLoading(false); }
+      } catch (error) { 
+        setProjectsError(error.message); 
+      } finally { 
+        setProjectsLoading(false); 
+      }
     }, 300);
     return () => clearTimeout(timer);
   }, [serverOnline, searchQuery, selectedCategory, budgetRange, urgencyFilter, sortBy]);
@@ -191,7 +211,7 @@ export default function App() {
     setToast({ message, type });
   };
 
-  // 🌟 BROWSE JOBS RESET HANDLER: CLEARS SEARCH QUERY & SCROLLS TO ALL JOBS
+  // Browse Jobs Click Handler (Resets Search & Smooth Scrolls to Jobs)
   const handleBrowseJobs = () => {
     setSearchQuery('');
     setSelectedCategory('all');
@@ -206,7 +226,7 @@ export default function App() {
     setSavedProjectIds(prev => {
       const isSaved = prev.includes(projectId);
       const next = isSaved ? prev.filter(id => id !== projectId) : [...prev, projectId];
-      showToast(isSaved ? 'Removed from saved' : 'Project saved!', 'info');
+      showToast(isSaved ? 'Removed from saved' : 'Project saved to bookmarks!', 'info');
       return next;
     });
   };
@@ -218,10 +238,25 @@ export default function App() {
       return;
     }
     try {
-      const savedResult = await apiCreateProject(newProjData);
+      const newProject = {
+        title: newProjData.title,
+        description: newProjData.description,
+        category: newProjData.category,
+        categoryId: newProjData.category,
+        categoryName: newProjData.categoryName,
+        budget: Number(newProjData.budget),
+        skills: newProjData.skills,
+        duration: newProjData.duration || '1-3 months',
+        budgetType: newProjData.budgetType,
+        deadline: newProjData.deadline,
+        daysLeft: newProjData.daysLeft,
+        urgency: newProjData.urgency,
+        deliverables: newProjData.deliverables
+      };
+      const savedResult = await apiCreateProject(newProject);
       setProjects(prev => [savedResult, ...prev]);
       setIsPostModalOpen(false);
-      showToast('🎉 Project posted successfully!');
+      showToast('🎉 Project posted successfully on WorkPulse!');
     } catch (err) {
       showToast(err.message || 'Failed to post project', 'error');
     }
@@ -234,10 +269,18 @@ export default function App() {
       return;
     }
     try {
-      const savedResult = await apiSubmitProposal(proposalData);
+      const payload = {
+        projectId: proposalData.projectId || proposalData.project,
+        coverLetter: proposalData.coverLetter,
+        bidAmount: Number(proposalData.bidAmount),
+        estimatedDays: Number(proposalData.estimatedDays || 7),
+        platformFee: Number(proposalData.platformFee || 0),
+        netAmount: Number(proposalData.netAmount || proposalData.bidAmount)
+      };
+      const savedResult = await apiSubmitProposal(payload);
       setProposals(prev => [savedResult, ...prev]);
       setSelectedProject(null);
-      showToast('🚀 Proposal submitted successfully!');
+      showToast('🚀 Proposal submitted successfully to employer!');
     } catch (err) {
       showToast(err.message || 'Failed to submit proposal', 'error');
     }
@@ -259,7 +302,9 @@ export default function App() {
       await apiRejectProposal(proposalId);
       setProposals(prev => prev.map(p => (p._id === proposalId || p.id === proposalId) ? { ...p, status: 'Declined' } : p));
       showToast('Proposal declined.', 'info');
-    } catch (error) { showToast('Could not decline', 'error'); }
+    } catch (error) { 
+      showToast('Could not decline', 'error'); 
+    }
   };
 
   const handleLoginSuccess = (userObj, msg) => {
@@ -280,8 +325,7 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
-
-        {/* Top Bar Header with Navbar LinkedIn Search */}
+      {/* 🌟 TOP NAVBAR (Search bar only renders here when logged in) */}
       <Header 
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -296,12 +340,11 @@ export default function App() {
         onDeleteAccount={handleLogout}
         onUpdateUser={(u) => setCurrentUser(u)}
         onBrowseJobs={handleBrowseJobs}
-        searchQuery={searchQuery}          
-         setSearchQuery={setSearchQuery}   
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
       />
-    
 
-      {/* Main Content Area with URL Sync */}
+      {/* MAIN CONTENT ROUTER */}
       <main style={{ flex: 1 }}>
         
         {/* 1. DEDICATED LOGIN PAGE (/login) */}
@@ -322,21 +365,16 @@ export default function App() {
           />
         )}
 
-        {/* 3. HOME / JOBS EXPLORE PAGE (/) */}
+        {/* 3. HOME / EXPLORE PAGE (/) */}
         {activeTab === 'explore' && (
           <>
+            {/* Clean Landing Hero (No search bar inside hero) */}
             <Hero 
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-              categories={CATEGORIES}
-              onSearchSubmit={() => {
-                const el = document.getElementById('project-list-section') || document.getElementById('projects-section');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
+              onNavigate={(tab) => setActiveTab(tab)} 
+              currentUser={currentUser} 
             />
 
+            {/* Popular Categories Preview with Live Project Counts */}
             <CategoryGrid 
               categories={CATEGORIES}
               selectedCategory={selectedCategory}
@@ -344,42 +382,61 @@ export default function App() {
               projects={projects}
             />
 
-            {/* 🌟 OPEN JOB BROWSING: ANYONE CAN BROWSE & VIEW ALL JOBS */}
+            {/* 🌟 GATED JOBS FEED: ONLY LOGGED-IN USERS CAN VIEW LIVE JOBS */}
             <div id="project-list-section">
-              <ProjectList 
-                projects={projects}
-                categories={CATEGORIES}
-                selectedCategory={selectedCategory}
-                setSelectedCategory={setSelectedCategory}
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                budgetRange={budgetRange}
-                setBudgetRange={setBudgetRange}
-                urgencyFilter={urgencyFilter}
-                setUrgencyFilter={setUrgencyFilter}
-                sortBy={sortBy}
-                setSortBy={setSortBy}
-                savedProjects={savedProjectIds}
-                onToggleSaveProject={handleToggleSaveProject}
-                onSelectProject={(proj) => setSelectedProject(proj)}
-                loading={projectsLoading}
-                error={projectsError}
-                total={serverOnline ? projectSearchMeta.total : undefined}
-                currentUser={currentUser}
-              />
+              {currentUser ? (
+                <ProjectList 
+                  projects={projects}
+                  categories={CATEGORIES}
+                  selectedCategory={selectedCategory}
+                  setSelectedCategory={setSelectedCategory}
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                  budgetRange={budgetRange}
+                  setBudgetRange={setBudgetRange}
+                  urgencyFilter={urgencyFilter}
+                  setUrgencyFilter={setUrgencyFilter}
+                  sortBy={sortBy}
+                  setSortBy={setSortBy}
+                  savedProjects={savedProjectIds}
+                  onToggleSaveProject={handleToggleSaveProject}
+                  onSelectProject={(proj) => setSelectedProject(proj)}
+                  loading={projectsLoading}
+                  error={projectsError}
+                  total={serverOnline ? projectSearchMeta.total : undefined}
+                  currentUser={currentUser}
+                />
+              ) : (
+                /* Public Landing Banner for Logged-out Visitors */
+                <AuthGate
+                  title="Log in to explore active jobs"
+                  message="Join 28,000+ top engineering and design talent to view live project briefs and submit proposals."
+                  onLogin={() => setActiveTab('login')}
+                  onSignup={() => setActiveTab('signup')}
+                />
+              )}
             </div>
           </>
         )}
 
-        {/* 4. FREELANCERS PAGE (/freelancers) */}
+        {/* 4. FREELANCERS TALENT PAGE: GATED (/freelancers) */}
         {activeTab === 'freelancers' && (
-          <FreelancerList 
-            freelancers={freelancers}
-            onSelectFreelancer={(freelancer) => setSelectedFreelancer(freelancer)}
-          />
+          currentUser ? (
+            <FreelancerList 
+              freelancers={freelancers}
+              onSelectFreelancer={(freelancer) => setSelectedFreelancer(freelancer)}
+            />
+          ) : (
+            <AuthGate
+              title="Log in to find talent"
+              message="Create a free client account to browse freelancer profiles and hire."
+              onLogin={() => setActiveTab('login')}
+              onSignup={() => setActiveTab('signup')}
+            />
+          )
         )}
 
-        {/* 5. WORKSPACE DASHBOARD (/dashboard) */}
+        {/* 5. WORKSPACE DASHBOARD: GATED (/dashboard) */}
         {activeTab === 'dashboard' && (
           currentUser ? (
             <Dashboard 
@@ -398,12 +455,12 @@ export default function App() {
               onRefreshContracts={loadContracts}
             />
           ) : (
-            <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
-              <h3>Please log in to view your workspace</h3>
-              <button onClick={() => setActiveTab('login')} className="btn btn-primary" style={{ marginTop: '1rem' }}>
-                Log In Now
-              </button>
-            </div>
+            <AuthGate
+              title="Log in to view your workspace"
+              message="Log in to see your active proposals, projects, contracts, and messages."
+              onLogin={() => setActiveTab('login')}
+              onSignup={() => setActiveTab('signup')}
+            />
           )
         )}
       </main>
@@ -414,7 +471,7 @@ export default function App() {
         else setActiveTab(tab);
       }} />
 
-      {/* Modals for Projects & Freelancers */}
+      {/* Modals */}
       {selectedProject && (
         <ProjectModal 
           project={selectedProject}
