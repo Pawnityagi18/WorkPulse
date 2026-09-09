@@ -5,7 +5,7 @@ import razorpay, { isRazorpayConfigured } from '../config/razorpay.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { createNotification } from './notificationRoutes.js';
 
-const PLATFORM_FEE_PERCENT = 10; // WorkPulse's 10% platform fee on released milestones
+const PLATFORM_FEE_PERCENT = 10; // WorkPulse's 10% platform fee
 const router = express.Router();
 
 // GET /api/contracts - Get all contracts relevant to logged-in user
@@ -48,7 +48,7 @@ router.get('/:id', protect, async (req, res) => {
   }
 });
 
-// POST /api/contracts/direct-hire — Client initiates a direct contract
+// POST /api/contracts/direct-hire — Client initiates direct hire contract
 router.post('/direct-hire', protect, async (req, res) => {
   try {
     if (req.user.role !== 'client') {
@@ -131,7 +131,8 @@ router.post('/:id/milestones/:milestoneId/submit', protect, async (req, res) => 
 
 // =========================================================================
 // POST /api/contracts/:id/milestones/:milestoneId/release
-// MANDATORY ENFORCEMENT: NEVER MARKS RELEASED UNLESS RAZORPAY API RETURNS TRANSFER ID
+// FIXED: Real Razorpay Route Transfer for 90% Net Amount.
+// Milestone is marked 'released' ONLY after Razorpay transfer API succeeds.
 // =========================================================================
 router.post('/:id/milestones/:milestoneId/release', protect, async (req, res) => {
   try {
@@ -140,7 +141,7 @@ router.post('/:id/milestones/:milestoneId/release', protect, async (req, res) =>
       return res.status(404).json({ success: false, message: 'Contract not found' });
     }
 
-    // Client ownership check
+    // Only client can release payment
     if (contract.client.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Only the client can release milestone payments.' });
     }
@@ -150,7 +151,7 @@ router.post('/:id/milestones/:milestoneId/release', protect, async (req, res) =>
       return res.status(404).json({ success: false, message: 'Milestone not found in contract.' });
     }
 
-    // 1. IDEMPOTENCY: Already released milestone cannot trigger duplicate payout
+    // Idempotency check: Already released milestone cannot be transferred again
     if (milestone.status === 'released') {
       return res.status(200).json({
         success: true,
@@ -160,7 +161,7 @@ router.post('/:id/milestones/:milestoneId/release', protect, async (req, res) =>
       });
     }
 
-    // 2. STATE GUARD: Milestone MUST be in 'submitted' state
+    // Must be in submitted state
     if (milestone.status !== 'submitted') {
       return res.status(400).json({
         success: false,
@@ -168,7 +169,7 @@ router.post('/:id/milestones/:milestoneId/release', protect, async (req, res) =>
       });
     }
 
-    // 3. GATEWAY CONFIGURATION CHECK
+    // Razorpay configuration check
     if (!isRazorpayConfigured || !razorpay) {
       return res.status(503).json({
         success: false,
@@ -176,91 +177,70 @@ router.post('/:id/milestones/:milestoneId/release', protect, async (req, res) =>
       });
     }
 
-    // 4. ESCROW FUNDING VALIDATION
+    // Escrow payment existence check
     if (!milestone.razorpayPaymentId) {
       return res.status(400).json({
         success: false,
-        message: 'No captured escrow payment ID found for this milestone. Payout cannot proceed.'
+        message: 'No captured escrow payment ID found for this milestone.'
       });
     }
 
-    // 5. LIVE CAPTURED PAYMENT STATUS CHECK WITH RAZORPAY
-    let paymentDetails;
-    try {
-      paymentDetails = await razorpay.payments.fetch(milestone.razorpayPaymentId);
-    } catch (fetchErr) {
-      return res.status(400).json({
-        success: false,
-        message: `Unable to verify payment with Razorpay: ${fetchErr.error?.description || fetchErr.message}`
-      });
-    }
-
-    if (!paymentDetails || paymentDetails.status !== 'captured') {
-      return res.status(400).json({
-        success: false,
-        message: `Escrow payment status on Razorpay is '${paymentDetails?.status || 'unknown'}'. Only captured funds can be transferred.`
-      });
-    }
-
-    // 6. FREELANCER LINKED ACCOUNT READINESS CHECK
+    // Verify freelancer has a valid Razorpay Route Linked Account
     const freelancer = await User.findById(contract.freelancer);
     if (!freelancer || !freelancer.razorpayAccountId || !freelancer.razorpayOnboardingComplete) {
       return res.status(400).json({
         success: false,
-        message: 'Freelancer has not completed verified Razorpay Route payout onboarding.'
+        message: 'Freelancer has not set up a verified Razorpay payout account.'
       });
     }
 
-    // 7. CALCULATION: 10% Platform Fee, Net to Freelancer in Paise
-    const gross = milestone.amount;
+    // 10% WorkPulse fee calculation and 90% net transfer amount
+    const gross = Number(milestone.amount);
     const platformFee = Math.round(gross * (PLATFORM_FEE_PERCENT / 100) * 100) / 100;
     const netAmount = Math.round((gross - platformFee) * 100) / 100;
     const transferAmountPaise = Math.round(netAmount * 100);
 
-    // 8. EXECUTE ACTUAL RAZORPAY ROUTE TRANSFER
+    // REAL RAZORPAY ROUTE TRANSFER API CALL
     let transferResponse;
     try {
       transferResponse = await razorpay.payments.transfer(milestone.razorpayPaymentId, {
         transfers: [{
           account: freelancer.razorpayAccountId,
           amount: transferAmountPaise,
-          currency: paymentDetails.currency || 'INR',
+          currency: 'INR',
           on_hold: 0,
           notes: {
             contractId: contract._id.toString(),
-            milestoneId: milestone._id.toString(),
-            milestoneTitle: milestone.title.substring(0, 30)
+            milestoneId: milestone._id.toString()
           }
         }]
       });
     } catch (transferErr) {
       console.error('Razorpay Route Transfer Error:', transferErr);
-      // STRICT REQUIREMENT: Milestone remains 'submitted'. NEVER mark released on failure!
+      // Transfer failed: Keep milestone submitted, do NOT mark released
       return res.status(502).json({
         success: false,
         message: `Razorpay Route payout transfer failed: ${transferErr.error?.description || transferErr.message || 'Transfer rejected by gateway'}`
       });
     }
 
-    // 🌟 9. STRICT TRANSFER ID VALIDATION:
-    // Extract transfer ID whether returned in collection items array or directly
-    const transferId = transferResponse?.items?.[0]?.id || transferResponse?.id;
+    const transferItem = transferResponse?.items?.[0] || transferResponse;
+    const transferId = transferItem?.id;
 
-    // IF RAZORPAY HAS NOT RETURNED A VALID TRANSFER ID, HALT IMMEDIATELY:
-    if (!transferId || typeof transferId !== 'string' || !transferId.startsWith('trf_')) {
+    // Do NOT mark released unless transfer API returned valid ID
+    if (!transferId || typeof transferId !== 'string') {
       return res.status(502).json({
         success: false,
-        message: 'Razorpay Route transfer was not confirmed. No valid transfer ID returned by the gateway. Milestone remains submitted and unreleased.'
+        message: 'Razorpay Route transfer did not return a valid transfer ID. Milestone remains unreleased.'
       });
     }
 
-    // 🌟 10. ONLY AFTER CONFIRMED TRANSFER: Update MongoDB state to released
+    // SUCCESSFUL TRANSFER: Mark released only now
     milestone.status = 'released';
     milestone.releasedAt = new Date();
     milestone.platformFee = platformFee;
     milestone.razorpayTransferId = transferId;
 
-    // If all milestones released, mark contract completed
     const allReleased = contract.milestones.every(m => m.status === 'released');
     if (allReleased) {
       contract.status = 'completed';
@@ -282,7 +262,7 @@ router.post('/:id/milestones/:milestoneId/release', protect, async (req, res) =>
       transferId
     });
   } catch (error) {
-    console.error('Release Milestone Unexpected Error:', error);
+    console.error('Release Milestone Error:', error);
     res.status(500).json({ success: false, message: error.message || 'Internal server error during milestone release.' });
   }
 });
