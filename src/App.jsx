@@ -280,7 +280,8 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
-      {/* Top Bar Header with Browse Jobs Reset */}
+
+        {/* Top Bar Header with Navbar LinkedIn Search */}
       <Header 
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -295,7 +296,10 @@ export default function App() {
         onDeleteAccount={handleLogout}
         onUpdateUser={(u) => setCurrentUser(u)}
         onBrowseJobs={handleBrowseJobs}
+        searchQuery={searchQuery}          {/* 🌟 LINKEDIN NAVBAR SEARCH */}
+        setSearchQuery={setSearchQuery}    {/* 🌟 REALTIME SEARCH HANDLER */}
       />
+    
 
       {/* Main Content Area with URL Sync */}
       <main style={{ flex: 1 }}>
