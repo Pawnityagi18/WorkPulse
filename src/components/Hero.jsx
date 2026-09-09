@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, 
   ArrowRight, 
-  Cpu, 
+  Shield, 
   CheckCircle2, 
-  Layers, 
-  Zap, 
-  Code2 
+  Briefcase, 
+  ChevronRight, 
+  CreditCard, 
+  Activity, 
+  ShoppingBag, 
+  Cpu, 
+  GraduationCap 
 } from 'lucide-react';
 
 export default function Hero({ 
@@ -18,38 +22,85 @@ export default function Hero({
   onSearchSubmit 
 }) {
 
-  // Technology Logos List with Real Official SVGs
-  const TECH_LOGOS = [
-    { name: 'React', svg: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/react/react-original.svg', color: '#00d8ff' },
-    { name: 'Python', svg: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg', color: '#3776ab' },
-    { name: 'Node.js', svg: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/nodejs/nodejs-original.svg', color: '#68a063' },
-    { name: 'TypeScript', svg: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/typescript/typescript-original.svg', color: '#3178c6' },
-    { name: 'Figma', svg: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/figma/figma-original.svg', color: '#f24e1e' },
-    { name: 'Next.js', svg: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/nextjs/nextjs-original.svg', color: '#000000' },
-    { name: 'Docker', svg: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/docker/docker-original.svg', color: '#2496ed' },
-    { name: 'MongoDB', svg: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/mongodb/mongodb-original.svg', color: '#47a248' },
-    { name: 'Flutter', svg: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/flutter/flutter-original.svg', color: '#02569b' },
+  // 🌟 Real Industry Sectors Served by WorkPulse with High-Res Images
+  const SECTORS = [
+    {
+      id: 'fintech',
+      title: 'FinTech & Digital Banking',
+      icon: CreditCard,
+      badge: 'High Demand',
+      description: 'Building secure payment gateways, crypto wallets, and algorithmic trading systems with 100% compliance.',
+      image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=700&auto=format&fit=crop&q=80',
+      stats: '180+ Projects Delivered',
+      highlight: 'Stripe & Razorpay Certified'
+    },
+    {
+      id: 'healthtech',
+      title: 'HealthTech & Telemedicine',
+      icon: Activity,
+      badge: 'Enterprise Grade',
+      description: 'HIPAA-ready doctor-patient web applications, fitness trackers, and AI-driven medical data diagnostics.',
+      image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=700&auto=format&fit=crop&q=80',
+      stats: '95+ Verified Apps Built',
+      highlight: 'Secure Patient Portals'
+    },
+    {
+      id: 'ecommerce',
+      title: 'E-Commerce & Digital Retail',
+      icon: ShoppingBag,
+      badge: 'Top Volume',
+      description: 'High-converting online storefronts, multi-vendor marketplaces, and automated inventory sync architectures.',
+      image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=700&auto=format&fit=crop&q=80',
+      stats: '340+ Stores Scaled',
+      highlight: 'Fast Next.js Checkouts'
+    },
+    {
+      id: 'ai-saas',
+      title: 'AI & Enterprise SaaS Systems',
+      icon: Cpu,
+      badge: 'Next-Gen',
+      description: 'Autonomous AI agents, LangChain RAG document search engines, and multi-tenant cloud SaaS platforms.',
+      image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=700&auto=format&fit=crop&q=80',
+      stats: '210+ AI Models Deployed',
+      highlight: 'Powered by Gemini & LLMs'
+    },
+    {
+      id: 'edtech',
+      title: 'EdTech & Smart Learning',
+      icon: GraduationCap,
+      badge: 'Interactive',
+      description: 'Interactive learning management platforms, live video coding classrooms, and student assessment engines.',
+      image: 'https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=700&auto=format&fit=crop&q=80',
+      stats: '120+ Campuses Onboarded',
+      highlight: 'Real-time Dashboards'
+    }
   ];
+
+  const [activeSectorIndex, setActiveSectorIndex] = useState(0);
+  const activeSector = SECTORS[activeSectorIndex];
+
+  // Auto-cycle through sectors every 4.5 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveSectorIndex((prev) => (prev + 1) % SECTORS.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [SECTORS.length]);
 
   return (
     <div style={{
       position: 'relative',
-      padding: '4rem 0 2.5rem 0',
+      padding: '4rem 0 3.5rem 0',
       background: 'linear-gradient(135deg, #E6F4F1 0%, #F0FAF8 40%, #FFFFFF 100%)',
       borderBottom: '1px solid var(--border-subtle, #E2E8F0)',
       overflow: 'hidden'
     }}>
-      
-      {/* Background Glowing Mesh Orbs */}
-      <div className="tech-glow-orb orb-teal" />
-      <div className="tech-glow-orb orb-cyan" />
-
       <div className="container" style={{ position: 'relative', zIndex: 2 }}>
         
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          gap: '3rem',
+          gap: '3.5rem',
           alignItems: 'center'
         }}>
           
@@ -72,7 +123,7 @@ export default function Hero({
                 boxShadow: '0 2px 10px rgba(0, 128, 128, 0.06)'
               }}>
                 <Sparkles size={16} color="#F59E0B" fill="#F59E0B" /> 
-                <span>AI-Powered Tech & Engineering Marketplace</span>
+                <span>Empowering Global Industries • Top 1% Verified Talent</span>
               </div>
             </div>
 
@@ -85,11 +136,10 @@ export default function Hero({
               letterSpacing: '-0.03em',
               color: 'var(--text-main, #0F172A)'
             }}>
-              Hire Top{' '}
-              <span className="shimmer-tech-text">
-                Tech Talent
+              Hire Domain Experts Across{' '}
+              <span className="shimmer-sector-text">
+                Every Major Industry
               </span>
-              <br />For Web, AI & Cloud
             </h1>
 
             <p style={{
@@ -99,7 +149,7 @@ export default function Hero({
               lineHeight: 1.6,
               maxWidth: '520px'
             }}>
-              Connect with verified React, Python, Node, and AI developers. Protected by 100% milestone escrow with instant automated matching.
+              From FinTech and HealthTech to AI and E-Commerce. Connect with specialized developers and designers backed by 100% milestone escrow protection.
             </p>
 
             {/* Multi-Input Search Box */}
@@ -124,7 +174,7 @@ export default function Hero({
                 />
                 <input 
                   type="text" 
-                  placeholder="Search by tech: React, Python, Next.js..." 
+                  placeholder="Search industries: FinTech, HealthTech, AI..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
@@ -155,7 +205,7 @@ export default function Hero({
                     padding: '0.5rem'
                   }}
                 >
-                  <option value="all">All Categories</option>
+                  <option value="all">All Industries</option>
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
@@ -167,14 +217,14 @@ export default function Hero({
                 className="btn btn-primary"
                 style={{ borderRadius: 'var(--radius-full)', padding: '0.75rem 1.5rem', fontWeight: 800 }}
               >
-                Find Developers <ArrowRight size={17} />
+                Explore Talent <ArrowRight size={17} />
               </button>
             </div>
 
-            {/* Trending Tech Pills */}
+            {/* Popular Industry Tags */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.85rem' }}>
-              <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>Hot Tech:</span>
-              {['React.js', 'Python AI', 'Next.js 15', 'Docker', 'Figma UI'].map((tag) => (
+              <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>Key Sectors:</span>
+              {['FinTech', 'HealthTech', 'E-Commerce', 'Artificial Intelligence', 'EdTech'].map((tag) => (
                 <button
                   key={tag}
                   onClick={() => setSearchQuery(tag)}
@@ -205,295 +255,168 @@ export default function Hero({
             </div>
           </div>
 
-          {/* ================= RIGHT COLUMN: 3D FLOATING TECH LOGO UNIVERSE ================= */}
-          <div style={{
-            position: 'relative',
-            minHeight: '440px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
+          {/* ================= RIGHT COLUMN: INTERACTIVE INDUSTRY SHOWCASE DECK ================= */}
+          <div>
             
-            {/* Center Core Hub Card */}
-            <div className="central-tech-hub" style={{
-              width: '100%',
-              maxWidth: '360px',
-              background: '#FFFFFF',
-              border: '1.5px solid rgba(0, 128, 128, 0.2)',
-              borderRadius: '24px',
-              padding: '2rem 1.5rem',
-              boxShadow: '0 20px 45px rgba(0, 128, 128, 0.12)',
-              textAlign: 'center',
-              position: 'relative',
-              zIndex: 3
+            {/* Interactive Sector Navigation Tabs */}
+            <div style={{
+              display: 'flex',
+              gap: '0.4rem',
+              overflowX: 'auto',
+              paddingBottom: '0.75rem',
+              marginBottom: '1rem'
             }}>
-              <div style={{
-                width: '54px',
-                height: '54px',
-                borderRadius: '16px',
-                background: 'linear-gradient(135deg, #008080 0%, #0EA5E9 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 1rem',
-                color: '#FFF',
-                boxShadow: '0 6px 18px rgba(0, 128, 128, 0.3)'
-              }}>
-                <Code2 size={28} />
-              </div>
+              {SECTORS.map((sec, idx) => {
+                const IconComponent = sec.icon;
+                const isActive = activeSectorIndex === idx;
 
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.4rem' }}>
-                Full-Stack Tech Ecosystem
-              </h3>
-              <p style={{ fontSize: '0.85rem', color: '#64748B', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-                Over 50+ modern frameworks, languages, and generative AI models integrated seamlessly.
-              </p>
-
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.4rem 0.9rem',
-                borderRadius: '20px',
-                background: '#E6F4F1',
-                color: '#008080',
-                fontSize: '0.78rem',
-                fontWeight: 700
-              }}>
-                <Zap size={14} fill="#008080" /> Automated Gemini AI Scoping
-              </div>
+                return (
+                  <button
+                    key={sec.id}
+                    onClick={() => setActiveSectorIndex(idx)}
+                    style={{
+                      padding: '0.5rem 0.9rem',
+                      borderRadius: '12px',
+                      border: isActive ? '1.5px solid #008080' : '1px solid #E2E8F0',
+                      background: isActive ? '#008080' : '#FFFFFF',
+                      color: isActive ? '#FFFFFF' : '#475569',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      boxShadow: isActive ? '0 4px 12px rgba(0,128,128,0.25)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <IconComponent size={14} />
+                    <span>{sec.id.toUpperCase()}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            {/* 🌟 1. FLOATING REACT LOGO (TOP-LEFT) */}
-            <div className="floating-tech-badge badge-pos-react">
-              <img src={TECH_LOGOS[0].svg} alt="React" style={{ width: '28px', height: '28px' }} />
-              <span>React.js</span>
-            </div>
+            {/* Showcase Visual Card */}
+            <div style={{
+              background: '#FFFFFF',
+              borderRadius: '24px',
+              border: '1.5px solid rgba(0, 128, 128, 0.18)',
+              overflow: 'hidden',
+              boxShadow: '0 20px 45px rgba(0, 128, 128, 0.12)',
+              position: 'relative'
+            }}>
+              
+              {/* Sector High-Res Image with Gradient Overlay */}
+              <div style={{ position: 'relative', height: '240px', overflow: 'hidden' }}>
+                <img 
+                  src={activeSector.image} 
+                  alt={activeSector.title}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    transition: 'transform 0.5s ease'
+                  }}
+                />
+                
+                {/* Image Overlay Gradient */}
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(15, 23, 42, 0.8) 100%)'
+                }} />
 
-            {/* 🌟 2. FLOATING PYTHON LOGO (TOP-RIGHT) */}
-            <div className="floating-tech-badge badge-pos-python">
-              <img src={TECH_LOGOS.svg} alt="Python" style={{ width: '26px', height: '26px' }} />
-              <span>Python AI</span>
-            </div>
-
-            {/* 🌟 3. FLOATING NODE.JS LOGO (MIDDLE-LEFT) */}
-            <div className="floating-tech-badge badge-pos-node">
-              <img src={TECH_LOGOS.svg} alt="Node" style={{ width: '26px', height: '26px' }} />
-              <span>Node.js</span>
-            </div>
-
-            {/* 🌟 4. FLOATING FIGMA LOGO (MIDDLE-RIGHT) */}
-            <div className="floating-tech-badge badge-pos-figma">
-              <img src={TECH_LOGOS.svg} alt="Figma" style={{ width: '24px', height: '24px' }} />
-              <span>Figma UI/UX</span>
-            </div>
-
-            {/* 🌟 5. FLOATING DOCKER LOGO (BOTTOM-LEFT) */}
-            <div className="floating-tech-badge badge-pos-docker">
-              <img src={TECH_LOGOS.svg} alt="Docker" style={{ width: '26px', height: '26px' }} />
-              <span>Docker & K8s</span>
-            </div>
-
-            {/* 🌟 6. FLOATING NEXT.JS LOGO (BOTTOM-RIGHT) */}
-            <div className="floating-tech-badge badge-pos-next">
-              <img src={TECH_LOGOS.svg} alt="Next.js" style={{ width: '26px', height: '26px' }} />
-              <span>Next.js 15</span>
-            </div>
-
-            {/* 🌟 7. FLOATING TYPESCRIPT BADGE (TOP-CENTER) */}
-            <div className="floating-tech-badge badge-pos-ts">
-              <img src={TECH_LOGOS.svg} alt="TypeScript" style={{ width: '22px', height: '22px' }} />
-              <span>TypeScript</span>
-            </div>
-
-          </div>
-        </div>
-
-        {/* ================= BOTTOM: INFINITE MOVING TECH MARQUEE ================= */}
-        <div style={{ marginTop: '3.5rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(0, 128, 128, 0.1)' }}>
-          <div style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748B', marginBottom: '1rem' }}>
-            Powered by Modern Technologies & Verified Stacks
-          </div>
-
-          <div className="tech-marquee-wrapper">
-            <div className="tech-marquee-track">
-              {[...TECH_LOGOS, ...TECH_LOGOS].map((t, idx) => (
-                <div key={idx} className="marquee-tech-item">
-                  <img src={t.svg} alt={t.name} style={{ width: '22px', height: '22px' }} />
-                  <span>{t.name}</span>
+                {/* Floating Top Badge */}
+                <div style={{
+                  position: 'absolute',
+                  top: '1rem',
+                  left: '1rem',
+                  padding: '4px 10px',
+                  borderRadius: '20px',
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  backdropFilter: 'blur(8px)',
+                  color: '#008080',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                }}>
+                  ★ {activeSector.badge}
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
 
+                {/* Escrow Badge on Image */}
+                <div style={{
+                  position: 'absolute',
+                  top: '1rem',
+                  right: '1rem',
+                  padding: '4px 10px',
+                  borderRadius: '20px',
+                  background: 'rgba(16, 185, 129, 0.9)',
+                  color: '#FFFFFF',
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem'
+                }}>
+                  <Shield size={12} /> 100% Escrow
+                </div>
+
+                {/* Sector Title on Image */}
+                <div style={{ position: 'absolute', bottom: '1rem', left: '1.25rem', right: '1.25rem' }}>
+                  <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#FFFFFF', margin: 0, textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
+                    {activeSector.title}
+                  </h3>
+                </div>
+              </div>
+
+              {/* Sector Content Body */}
+              <div style={{ padding: '1.5rem' }}>
+                <p style={{ color: '#475569', fontSize: '0.9rem', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+                  {activeSector.description}
+                </p>
+
+                {/* Sector Metrics & Highlights */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '0.75rem 1rem',
+                  background: '#F0FAF8',
+                  borderRadius: '14px',
+                  border: '1px solid #B2DFDB'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 700, color: '#006666' }}>
+                    <CheckCircle2 size={16} color="#008080" />
+                    <span>{activeSector.stats}</span>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#0284C7' }}>
+                    {activeSector.highlight}
+                  </span>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
       </div>
 
-      {/* ================= CSS ANIMATIONS & FLOATING TRAJECTORIES ================= */}
+      {/* CSS Animation */}
       <style>{`
-        /* Floating Tech Badges Styling */
-        .floating-tech-badge {
-          position: absolute;
-          background: #FFFFFF;
-          border: 1px solid rgba(0, 128, 128, 0.18);
-          border-radius: 50px;
-          padding: 0.5rem 0.95rem;
-          display: flex;
-          align-items: center;
-          gap: 0.55rem;
-          box-shadow: 0 10px 25px rgba(0, 128, 128, 0.1);
-          font-size: 0.825rem;
-          font-weight: 700;
-          color: #0F172A;
-          cursor: pointer;
-          transition: transform 0.3s ease, box-shadow 0.3s ease;
-          z-index: 4;
-        }
-
-        .floating-tech-badge:hover {
-          transform: scale(1.1) !important;
-          box-shadow: 0 15px 35px rgba(0, 128, 128, 0.25);
-          border-color: #008080;
-        }
-
-        /* Distinct Floating Animations & Positions */
-        @keyframes float1 {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-12px) rotate(2deg); }
-        }
-        @keyframes float2 {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(14px) rotate(-3deg); }
-        }
-        @keyframes float3 {
-          0%, 100% { transform: translateX(0px) translateY(0px); }
-          50% { transform: translateX(-8px) translateY(-10px); }
-        }
-        @keyframes float4 {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(10px); }
-        }
-
-        .badge-pos-react {
-          top: -10px;
-          left: 5px;
-          animation: float1 4.5s ease-in-out infinite;
-        }
-
-        .badge-pos-python {
-          top: 15px;
-          right: -10px;
-          animation: float2 5s ease-in-out infinite;
-        }
-
-        .badge-pos-node {
-          bottom: 120px;
-          left: -25px;
-          animation: float3 6s ease-in-out infinite;
-        }
-
-        .badge-pos-figma {
-          top: 130px;
-          right: -30px;
-          animation: float1 5.5s ease-in-out infinite;
-        }
-
-        .badge-pos-docker {
-          bottom: -15px;
-          left: 10px;
-          animation: float2 4.8s ease-in-out infinite;
-        }
-
-        .badge-pos-next {
-          bottom: 5px;
-          right: 5px;
-          animation: float3 5.2s ease-in-out infinite;
-        }
-
-        .badge-pos-ts {
-          top: -30px;
-          left: 42%;
-          animation: float4 4s ease-in-out infinite;
-        }
-
-        /* Text Shimmer Effect */
-        .shimmer-tech-text {
+        .shimmer-sector-text {
           background: linear-gradient(135deg, #008080 0%, #0EA5E9 50%, #008080 100%);
           background-size: 200% auto;
           color: transparent;
           -webkit-background-clip: text;
           background-clip: text;
-          animation: shimmerTech 5s linear infinite;
+          animation: shimmerSector 5s linear infinite;
         }
 
-        @keyframes shimmerTech {
+        @keyframes shimmerSector {
           to { background-position: 200% center; }
-        }
-
-        /* Glowing Orbs */
-        .tech-glow-orb {
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(90px);
-          opacity: 0.45;
-          pointer-events: none;
-          z-index: 1;
-        }
-        .orb-teal {
-          width: 350px;
-          height: 350px;
-          background: #B2DFDB;
-          top: -60px;
-          right: 5%;
-        }
-        .orb-cyan {
-          width: 280px;
-          height: 280px;
-          background: #BAE6FD;
-          bottom: 10px;
-          left: 10%;
-        }
-
-        /* Continuous Infinite Marquee */
-        .tech-marquee-wrapper {
-          overflow: hidden;
-          width: 100%;
-          display: flex;
-          mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
-          -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
-        }
-
-        .tech-marquee-track {
-          display: flex;
-          gap: 1.5rem;
-          width: max-content;
-          animation: marqueeScroll 22s linear infinite;
-        }
-
-        .marquee-tech-item {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.4rem 0.9rem;
-          border-radius: 12px;
-          background: #FFFFFF;
-          border: 1px solid #E2E8F0;
-          font-size: 0.8rem;
-          font-weight: 700;
-          color: #334155;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.02);
-          white-space: nowrap;
-        }
-
-        @keyframes marqueeScroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-
-        @media (max-width: 768px) {
-          .badge-pos-ts { display: none !important; }
-          .badge-pos-node { left: 0px !important; }
-          .badge-pos-figma { right: 0px !important; }
         }
       `}</style>
     </div>
