@@ -30,7 +30,7 @@ import {
 } from './api/client';
 
 export default function App() {
-  // 🌟 REAL URL ROUTING: Reads initial URL pathname (/login, /signup, /dashboard, etc.)
+  // Real URL Navigation Sync (/login, /signup, /dashboard, etc.)
   const getInitialRoute = () => {
     const path = window.location.pathname.replace('/', '').toLowerCase();
     if (['explore', 'freelancers', 'dashboard', 'login', 'signup'].includes(path)) {
@@ -43,7 +43,6 @@ export default function App() {
   const [userRole, setUserRole] = useState('freelancer');
   const [serverOnline, setServerOnline] = useState(false);
 
-  // Updates activeTab and synchronizes browser address bar
   const setActiveTab = (tab) => {
     setActiveTabState(tab);
     const newPath = tab === 'explore' ? '/' : `/${tab}`;
@@ -53,7 +52,6 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Listen to browser Back / Forward buttons
   useEffect(() => {
     const handlePopState = () => {
       setActiveTabState(getInitialRoute());
@@ -62,7 +60,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Authentication State
+  // Auth User
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem('workpulse_user');
@@ -72,13 +70,13 @@ export default function App() {
     }
   });
 
-  // Real Database Entities (No fake fallback storage)
+  // 🌟 STRICT DATABASE STATES (NO LOCALSTORAGE DATABASE EMULATION)
   const [projects, setProjects] = useState([]);
   const [freelancers, setFreelancers] = useState([]);
   const [proposals, setProposals] = useState([]);
   const [contracts, setContracts] = useState([]);
 
-  // Bookmarked Project IDs (Empty default, no fake 2 badge)
+  // Bookmarks (Only user IDs, no fake initial bookmarks)
   const [savedProjectIds, setSavedProjectIds] = useState(() => {
     try {
       const saved = localStorage.getItem('workpulse_saved_projects');
@@ -100,20 +98,20 @@ export default function App() {
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState('');
 
-  // Modals & Toast State
+  // Modals & Toast
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedFreelancer, setSelectedFreelancer] = useState(null);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // Sync bookmarks to localStorage
+  // Sync bookmarks
   useEffect(() => {
     try {
       localStorage.setItem('workpulse_saved_projects', JSON.stringify(savedProjectIds));
     } catch (e) {}
   }, [savedProjectIds]);
 
-  // Sync logged in user to localStorage
+  // Sync logged in user
   useEffect(() => {
     try {
       if (currentUser) {
@@ -142,7 +140,7 @@ export default function App() {
     }
   };
 
-  // Initial Full-Stack API Sync
+  // Initial Full-Stack API Sync from MongoDB
   useEffect(() => {
     const initServerSync = async () => {
       const isOnline = await checkServerHealth();
@@ -170,7 +168,7 @@ export default function App() {
     }
   }, [currentUser]);
 
-  // Real Database Search & Filtering (Debounced)
+  // Search & Filter Query Execution
   useEffect(() => {
     if (!serverOnline) return;
     const timer = setTimeout(async () => {
@@ -201,7 +199,6 @@ export default function App() {
     setToast({ message, type });
   };
 
-  // Browse Jobs Click Handler (Resets Search & Smooth Scrolls to Jobs)
   const handleBrowseJobs = () => {
     setSearchQuery('');
     setSelectedCategory('all');
@@ -221,7 +218,7 @@ export default function App() {
     });
   };
 
-  // Create Project: Strict Real Backend Handling
+  // 🌟 POST PROJECT: STRICT BACKEND CONFIRMATION
   const handleCreateProject = async (newProjData) => {
     if (!currentUser || currentUser.role !== 'client') {
       setIsPostModalOpen(false);
@@ -253,7 +250,7 @@ export default function App() {
     }
   };
 
-  // Submit Proposal: Strict Real Backend Handling
+  // 🌟 SUBMIT PROPOSAL: STRICT BACKEND CONFIRMATION
   const handleSubmitProposal = async (proposalData) => {
     if (!currentUser || currentUser.role !== 'freelancer') {
       setSelectedProject(null);
@@ -278,7 +275,7 @@ export default function App() {
     }
   };
 
-  // Accept Proposal: Strict Real Backend Handling (NO FAKE SUCCESS)
+  // 🌟 ACCEPT PROPOSAL: ZERO FAKE SUCCESS ON FAILURE
   const handleAcceptProposal = async (proposalId) => {
     try {
       await apiAcceptProposal(proposalId);
@@ -300,7 +297,7 @@ export default function App() {
     }
   };
 
-  // Direct Hire: Real Backend Call
+  // 🌟 DIRECT HIRE: REAL BACKEND OPERATION
   const handleDirectHire = async (hireData) => {
     if (!currentUser) {
       setSelectedFreelancer(null);
@@ -340,7 +337,7 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
-      {/* 🌟 TOP NAVBAR (LinkedIn Search only visible when logged in) */}
+      {/* Header */}
       <Header 
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -359,10 +356,9 @@ export default function App() {
         setSearchQuery={setSearchQuery}
       />
 
-      {/* MAIN CONTENT ROUTER */}
+      {/* Main Routes */}
       <main style={{ flex: 1 }}>
         
-        {/* 1. DEDICATED LOGIN PAGE (/login) */}
         {activeTab === 'login' && (
           <AuthPage 
             mode="login" 
@@ -371,7 +367,6 @@ export default function App() {
           />
         )}
 
-        {/* 2. DEDICATED SIGNUP PAGE (/signup) */}
         {activeTab === 'signup' && (
           <AuthPage 
             mode="signup" 
@@ -380,16 +375,13 @@ export default function App() {
           />
         )}
 
-        {/* 3. HOME / EXPLORE PAGE (/) */}
         {activeTab === 'explore' && (
           <>
-            {/* Clean Landing Hero (No search bar inside hero) */}
             <Hero 
               onNavigate={(tab) => setActiveTab(tab)} 
               currentUser={currentUser} 
             />
 
-            {/* Popular Categories with Real Projects Count */}
             <CategoryGrid 
               categories={CATEGORIES}
               selectedCategory={selectedCategory}
@@ -397,7 +389,6 @@ export default function App() {
               projects={projects}
             />
 
-            {/* 🌟 GATED JOBS: ONLY LOGGED-IN USERS CAN VIEW LIVE JOBS */}
             <div id="project-list-section">
               {currentUser ? (
                 <ProjectList 
@@ -422,7 +413,6 @@ export default function App() {
                   currentUser={currentUser}
                 />
               ) : (
-                /* Public Landing Banner */
                 <AuthGate
                   title="Log in to explore active jobs"
                   message="Join 28,000+ top engineering and design talent to view live project briefs and submit proposals."
@@ -434,7 +424,6 @@ export default function App() {
           </>
         )}
 
-        {/* 4. FREELANCERS TALENT PAGE: GATED (/freelancers) */}
         {activeTab === 'freelancers' && (
           currentUser ? (
             <FreelancerList 
@@ -451,7 +440,6 @@ export default function App() {
           )
         )}
 
-        {/* 5. WORKSPACE DASHBOARD: GATED (/dashboard) */}
         {activeTab === 'dashboard' && (
           currentUser ? (
             <Dashboard 
@@ -486,7 +474,7 @@ export default function App() {
         else setActiveTab(tab);
       }} />
 
-      {/* Modals for Projects & Freelancers */}
+      {/* Modals */}
       {selectedProject && (
         <ProjectModal 
           project={selectedProject}
@@ -514,7 +502,6 @@ export default function App() {
         />
       )}
 
-      {/* Toast Alert */}
       {toast && (
         <Toast 
           message={toast.message} 

@@ -1,5 +1,5 @@
-// WorkPulse Production API Client with Strict Real Backend Verification
-// Zero Fake Fallbacks · Zero Mock Data Emulation · Strict Error Propagation
+// WorkPulse Production API Client
+// STRICT PRODUCTION RULES: Zero Fake Fallbacks · Zero Mock Generations · Strict Error Propagation
 
 const API_BASE_URL = import.meta.env.VITE_API_URL
   ? import.meta.env.VITE_API_URL
@@ -36,7 +36,6 @@ const getHeaders = (isJson = true) => {
   return headers;
 };
 
-// Safe JSON fetch wrapper that strictly parses real responses
 const safeFetchJson = async (url, options = {}) => {
   try {
     const res = await fetch(url, options);
@@ -64,7 +63,7 @@ export const checkServerHealth = async () => {
   }
 };
 
-// ---- AUTHENTICATION (STRICT REAL VERIFICATION) ----
+// ================= AUTHENTICATION (STRICT REAL MONGODB) =================
 export const apiLogin = async (credentials) => {
   const result = await safeFetchJson(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
@@ -109,7 +108,7 @@ export const apiFetchMe = async () => {
   return null;
 };
 
-// ---- PROJECTS (STRICT REAL DATA) ----
+// ================= PROJECTS (REAL DATABASE DRIVEN) =================
 export const apiFetchProjects = async () => {
   const result = await safeFetchJson(`${API_BASE_URL}/projects`);
   if (result.ok && result.data) {
@@ -145,10 +144,10 @@ export const apiSearchProjects = async (filters = {}) => {
   if (result.ok && result.data?.projects) {
     return result.data;
   }
-  throw new Error(result.data?.message || 'Could not load projects');
+  throw new Error(result.data?.message || 'Could not load projects from server');
 };
 
-// ---- FREELANCERS / FIND TALENT (REAL DATABASE USERS) ----
+// ================= FREELANCERS (REAL MONGODB USERS) =================
 export const apiFetchFreelancers = async () => {
   const result = await safeFetchJson(`${API_BASE_URL}/freelancers`);
   if (result.ok && result.data) {
@@ -158,7 +157,7 @@ export const apiFetchFreelancers = async () => {
   return [];
 };
 
-// ---- PROPOSALS (STRICT REAL DATA) ----
+// ================= PROPOSALS (REAL DATABASE DRIVEN) =================
 export const apiFetchProposals = async () => {
   const result = await safeFetchJson(`${API_BASE_URL}/proposals`, {
     headers: getHeaders(false)
@@ -182,7 +181,7 @@ export const apiSubmitProposal = async (proposalData) => {
     return result.data.proposal;
   }
 
-  throw new Error(result.data?.message || 'Failed to submit proposal to client');
+  throw new Error(result.data?.message || 'Failed to submit proposal');
 };
 
 export const apiAcceptProposal = async (proposalId) => {
@@ -211,7 +210,7 @@ export const apiRejectProposal = async (proposalId) => {
   throw new Error(result.data?.message || 'Could not reject proposal');
 };
 
-// ---- CONTRACTS & DIRECT HIRE (STRICT REAL DATA) ----
+// ================= CONTRACTS & DIRECT HIRE =================
 export const apiFetchContracts = async () => {
   const result = await safeFetchJson(`${API_BASE_URL}/contracts`, {
     headers: getHeaders(false)
@@ -233,14 +232,41 @@ export const apiDirectHire = async (freelancerId, offerDetails) => {
     body: JSON.stringify({ freelancerId, ...offerDetails })
   });
 
-  if (result.ok && result.data) {
+  if (result.ok && result.data && (result.data.contract || result.data.success)) {
     return result.data;
   }
 
   throw new Error(result.data?.message || 'Could not create direct hire contract');
 };
 
-// ---- PAYMENTS & RAZORPAY ----
+export const apiSubmitMilestone = async (contractId, milestoneId, submissionNotes) => {
+  const result = await safeFetchJson(`${API_BASE_URL}/contracts/${contractId}/milestones/${milestoneId}/submit`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ submissionNotes })
+  });
+
+  if (result.ok && result.data && result.data.contract) {
+    return result.data.contract;
+  }
+
+  throw new Error(result.data?.message || 'Submitting work failed');
+};
+
+export const apiReleaseMilestone = async (contractId, milestoneId) => {
+  const result = await safeFetchJson(`${API_BASE_URL}/contracts/${contractId}/milestones/${milestoneId}/release`, {
+    method: 'POST',
+    headers: getHeaders()
+  });
+
+  if (result.ok && result.data && result.data.contract) {
+    return result.data.contract;
+  }
+
+  throw new Error(result.data?.message || 'Releasing payment failed');
+};
+
+// ================= PAYMENTS (RAZORPAY) =================
 export const apiFundMilestone = async (contractId, milestoneId) => {
   const result = await safeFetchJson(`${API_BASE_URL}/payments/contracts/${contractId}/milestones/${milestoneId}/checkout`, {
     method: 'POST',
@@ -276,7 +302,7 @@ export const apiCancelMilestoneCheckout = async (contractId, milestoneId, orderI
   });
 
   if (result.ok && result.data?.contract) return result.data.contract;
-  throw new Error(result.data?.message || 'Could not cancel the payment checkout');
+  throw new Error(result.data?.message || 'Could not cancel payment checkout');
 };
 
 export const apiStartPayoutOnboarding = async (details) => {
@@ -298,34 +324,7 @@ export const apiGetPayoutStatus = async () => {
   return result.ok ? result.data : { onboardingComplete: false };
 };
 
-export const apiSubmitMilestone = async (contractId, milestoneId, submissionNotes) => {
-  const result = await safeFetchJson(`${API_BASE_URL}/contracts/${contractId}/milestones/${milestoneId}/submit`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify({ submissionNotes })
-  });
-
-  if (result.ok && result.data && result.data.contract) {
-    return result.data.contract;
-  }
-
-  throw new Error(result.data?.message || 'Submitting work failed');
-};
-
-export const apiReleaseMilestone = async (contractId, milestoneId) => {
-  const result = await safeFetchJson(`${API_BASE_URL}/contracts/${contractId}/milestones/${milestoneId}/release`, {
-    method: 'POST',
-    headers: getHeaders()
-  });
-
-  if (result.ok && result.data && result.data.contract) {
-    return result.data.contract;
-  }
-
-  throw new Error(result.data?.message || 'Releasing payment failed');
-};
-
-// ---- REAL AI ENDPOINTS (GEMINI 3.6 FLASH) ----
+// ================= REAL AI ENDPOINTS (GEMINI 3.6 FLASH) =================
 export const apiGenerateProjectDescription = async (details) => {
   const result = await safeFetchJson(`${API_BASE_URL}/ai/project-description`, {
     method: 'POST',
@@ -337,7 +336,7 @@ export const apiGenerateProjectDescription = async (details) => {
   throw new Error(result.data?.message || 'AI service failed to generate description');
 };
 
-// ---- MESSAGES & WORKROOM ----
+// ================= MESSAGES & WORKROOM =================
 export const apiFetchMessages = async (contractId) => {
   const result = await safeFetchJson(`${API_BASE_URL}/messages/${contractId}`, {
     headers: getHeaders(false)
@@ -363,7 +362,7 @@ export const apiSendMessage = async (contractId, content) => {
   throw new Error(result.data?.message || 'Failed to deliver message');
 };
 
-// ---- NOTIFICATIONS ----
+// ================= NOTIFICATIONS =================
 export const apiFetchNotifications = async () => {
   const result = await safeFetchJson(`${API_BASE_URL}/notifications`, {
     headers: getHeaders(false)
@@ -387,7 +386,7 @@ export const apiMarkAllNotificationsRead = async () => {
   return result.ok;
 };
 
-// ---- AVATAR UPLOAD ----
+// ================= AVATAR UPLOAD =================
 export const apiUploadAvatar = async (file) => {
   const formData = new FormData();
   formData.append('avatar', file);
@@ -402,7 +401,7 @@ export const apiUploadAvatar = async (file) => {
   throw new Error(result.data?.message || 'Avatar upload failed');
 };
 
-// ---- REVIEWS ----
+// ================= REVIEWS =================
 export const apiSubmitReview = async (contractId, rating, comment) => {
   const result = await safeFetchJson(`${API_BASE_URL}/reviews`, {
     method: 'POST',
@@ -421,7 +420,14 @@ export const apiFetchUserReviews = async (userId) => {
   return result.ok ? (result.data.reviews || []) : [];
 };
 
-// ---- PASSWORD RESET ----
+export const apiCheckAlreadyReviewed = async (contractId) => {
+  const result = await safeFetchJson(`${API_BASE_URL}/reviews/contract/${contractId}`, {
+    headers: getHeaders(false)
+  });
+  return result.ok ? result.data.alreadyReviewed : false;
+};
+
+// ================= PASSWORD RESET =================
 export const apiForgotPassword = async (email) => {
   const result = await safeFetchJson(`${API_BASE_URL}/auth/forgot-password`, {
     method: 'POST',
@@ -440,7 +446,7 @@ export const apiResetPassword = async (token, password) => {
   return result.ok ? result.data : { success: false, message: result.data?.message || 'Reset failed.' };
 };
 
-// ---- DISPUTES ----
+// ================= DISPUTES =================
 export const apiRaiseDispute = async (contractId, reason) => {
   const result = await safeFetchJson(`${API_BASE_URL}/contracts/${contractId}/dispute`, {
     method: 'POST',
