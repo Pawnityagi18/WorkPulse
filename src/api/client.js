@@ -1,9 +1,6 @@
-// WorkPulse Resilient API Client with JWT Auth & Automatic Fallbacks
+// WorkPulse Production API Client with Strict Real Backend Verification
+// Zero Fake Fallbacks · Zero Mock Data Emulation · Strict Error Propagation
 
-// In production, the frontend (e.g. Vercel) and backend (e.g. Render) usually
-// live on different domains, so a relative '/api' path would wrongly hit the
-// frontend's own domain. Set VITE_API_URL in your deployment platform's env
-// vars to the deployed backend's URL (e.g. https://workpulse-backend.onrender.com/api).
 const API_BASE_URL = import.meta.env.VITE_API_URL
   ? import.meta.env.VITE_API_URL
   : (typeof window !== 'undefined' && window.location.hostname === 'localhost'
@@ -12,7 +9,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL
 
 export const getAuthToken = () => {
   if (typeof window !== 'undefined') {
-    return localStorage.getItem('workpulse_token');
+    return localStorage.getItem('workpulse_token') || localStorage.getItem('token');
   }
   return null;
 };
@@ -21,8 +18,10 @@ export const setAuthToken = (token) => {
   if (typeof window !== 'undefined') {
     if (token) {
       localStorage.setItem('workpulse_token', token);
+      localStorage.setItem('token', token);
     } else {
       localStorage.removeItem('workpulse_token');
+      localStorage.removeItem('token');
     }
   }
 };
@@ -37,7 +36,7 @@ const getHeaders = (isJson = true) => {
   return headers;
 };
 
-// Safe JSON fetch wrapper that gracefully handles non-JSON / HTML 404 responses
+// Safe JSON fetch wrapper that strictly parses real responses
 const safeFetchJson = async (url, options = {}) => {
   try {
     const res = await fetch(url, options);
@@ -48,7 +47,7 @@ const safeFetchJson = async (url, options = {}) => {
     }
     return { ok: false, status: res.status, data: null, isHtmlResponse: true };
   } catch (err) {
-    return { ok: false, status: 500, data: null, isNetworkError: true };
+    return { ok: false, status: 500, data: null, isNetworkError: true, error: err.message };
   }
 };
 
@@ -65,6 +64,7 @@ export const checkServerHealth = async () => {
   }
 };
 
+// ---- AUTHENTICATION (STRICT REAL VERIFICATION) ----
 export const apiLogin = async (credentials) => {
   const result = await safeFetchJson(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
@@ -77,22 +77,7 @@ export const apiLogin = async (credentials) => {
     return result.data;
   }
 
-  if (result.data && result.data.message) {
-    throw new Error(result.data.message);
-  }
-
-  // Fallback for static host / backend offline
-  const fallbackUser = {
-    _id: 'usr_' + Date.now(),
-    name: credentials.email.split('@')[0].toUpperCase(),
-    email: credentials.email,
-    role: credentials.role || 'freelancer',
-    avatar: credentials.role === 'client' 
-      ? 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80'
-      : 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&auto=format&fit=crop&q=80'
-  };
-  setAuthToken('demo_jwt_token');
-  return { success: true, user: fallbackUser, token: 'demo_jwt_token' };
+  throw new Error(result.data?.message || 'Invalid email or password');
 };
 
 export const apiSignup = async (userData) => {
@@ -107,42 +92,31 @@ export const apiSignup = async (userData) => {
     return result.data;
   }
 
-  if (result.data && result.data.message) {
-    throw new Error(result.data.message);
-  }
-
-  // Fallback for static host / backend offline
-  const fallbackUser = {
-    _id: 'usr_' + Date.now(),
-    name: userData.name,
-    email: userData.email,
-    role: userData.role || 'freelancer',
-    avatar: userData.role === 'client'
-      ? 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80'
-      : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
-  };
-  setAuthToken('demo_jwt_token');
-  return { success: true, user: fallbackUser, token: 'demo_jwt_token' };
+  throw new Error(result.data?.message || 'Registration failed. Check your details.');
 };
 
 export const apiFetchMe = async () => {
   const token = getAuthToken();
   if (!token) return null;
+
   const result = await safeFetchJson(`${API_BASE_URL}/auth/me`, {
     headers: getHeaders(false)
   });
+
   if (result.ok && result.data && result.data.user) {
     return result.data.user;
   }
   return null;
 };
 
-export const apiFetchProjects = async (fallbackData) => {
+// ---- PROJECTS (STRICT REAL DATA) ----
+export const apiFetchProjects = async () => {
   const result = await safeFetchJson(`${API_BASE_URL}/projects`);
-  if (result.ok && result.data && result.data.projects && Array.isArray(result.data.projects) && result.data.projects.length > 0) {
-    return result.data.projects;
+  if (result.ok && result.data) {
+    if (Array.isArray(result.data.projects)) return result.data.projects;
+    if (Array.isArray(result.data)) return result.data;
   }
-  return fallbackData;
+  return [];
 };
 
 export const apiCreateProject = async (projectData) => {
@@ -155,22 +129,46 @@ export const apiCreateProject = async (projectData) => {
   if (result.ok && result.data && result.data.project) {
     return result.data.project;
   }
-  return {
-    _id: 'proj_' + Date.now(),
-    ...projectData,
-    status: 'Open',
-    createdAt: new Date().toISOString()
-  };
+
+  throw new Error(result.data?.message || 'Failed to create project on server');
 };
 
-export const apiFetchProposals = async (fallbackData) => {
+export const apiSearchProjects = async (filters = {}) => {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+      params.set(key, value);
+    }
+  });
+
+  const result = await safeFetchJson(`${API_BASE_URL}/projects?${params.toString()}`);
+  if (result.ok && result.data?.projects) {
+    return result.data;
+  }
+  throw new Error(result.data?.message || 'Could not load projects');
+};
+
+// ---- FREELANCERS / FIND TALENT (REAL DATABASE USERS) ----
+export const apiFetchFreelancers = async () => {
+  const result = await safeFetchJson(`${API_BASE_URL}/freelancers`);
+  if (result.ok && result.data) {
+    if (Array.isArray(result.data.freelancers)) return result.data.freelancers;
+    if (Array.isArray(result.data)) return result.data;
+  }
+  return [];
+};
+
+// ---- PROPOSALS (STRICT REAL DATA) ----
+export const apiFetchProposals = async () => {
   const result = await safeFetchJson(`${API_BASE_URL}/proposals`, {
     headers: getHeaders(false)
   });
-  if (result.ok && result.data && result.data.proposals && Array.isArray(result.data.proposals)) {
-    return result.data.proposals;
+
+  if (result.ok && result.data) {
+    if (Array.isArray(result.data.proposals)) return result.data.proposals;
+    if (Array.isArray(result.data)) return result.data;
   }
-  return fallbackData;
+  return [];
 };
 
 export const apiSubmitProposal = async (proposalData) => {
@@ -183,12 +181,8 @@ export const apiSubmitProposal = async (proposalData) => {
   if (result.ok && result.data && result.data.proposal) {
     return result.data.proposal;
   }
-  return {
-    _id: 'prop_' + Date.now(),
-    ...proposalData,
-    status: 'Pending',
-    createdAt: new Date().toISOString()
-  };
+
+  throw new Error(result.data?.message || 'Failed to submit proposal to client');
 };
 
 export const apiAcceptProposal = async (proposalId) => {
@@ -197,67 +191,81 @@ export const apiAcceptProposal = async (proposalId) => {
     headers: getHeaders()
   });
 
-  if (result.ok && result.data) {
+  if (result.ok && result.data && (result.data.success || result.data.contract)) {
     return result.data;
   }
-  return { success: true, message: 'Proposal accepted locally' };
+
+  throw new Error(result.data?.message || 'Could not accept proposal on server');
 };
 
+export const apiRejectProposal = async (proposalId) => {
+  const result = await safeFetchJson(`${API_BASE_URL}/proposals/${proposalId}/reject`, {
+    method: 'POST',
+    headers: getHeaders()
+  });
+
+  if (result.ok && result.data?.success) {
+    return result.data;
+  }
+
+  throw new Error(result.data?.message || 'Could not reject proposal');
+};
+
+// ---- CONTRACTS & DIRECT HIRE (STRICT REAL DATA) ----
 export const apiFetchContracts = async () => {
   const result = await safeFetchJson(`${API_BASE_URL}/contracts`, {
     headers: getHeaders(false)
   });
-  if (result.ok && result.data && result.data.contracts) {
+
+  if (result.ok && result.data && Array.isArray(result.data.contracts)) {
     return result.data.contracts;
+  }
+  if (result.ok && Array.isArray(result.data)) {
+    return result.data;
   }
   return [];
 };
 
-// Creates a Razorpay Order for a milestone. Returns order details the caller uses
-// to open Razorpay's Checkout modal — this is a JS overlay, not a redirect.
+export const apiDirectHire = async (freelancerId, offerDetails) => {
+  const result = await safeFetchJson(`${API_BASE_URL}/contracts/direct-hire`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ freelancerId, ...offerDetails })
+  });
+
+  if (result.ok && result.data) {
+    return result.data;
+  }
+
+  throw new Error(result.data?.message || 'Could not create direct hire contract');
+};
+
+// ---- PAYMENTS & RAZORPAY ----
 export const apiFundMilestone = async (contractId, milestoneId) => {
   const result = await safeFetchJson(`${API_BASE_URL}/payments/contracts/${contractId}/milestones/${milestoneId}/checkout`, {
     method: 'POST',
     headers: getHeaders()
   });
+
   if (result.ok && result.data && result.data.orderId) {
-    return result.data; // { orderId, amount, currency, keyId }
+    return result.data;
   }
+
   throw new Error(result.data?.message || 'Starting checkout failed');
 };
 
-// Called right after Razorpay Checkout's success handler fires, with the three
-// fields it returns. Verifies the payment signature server-side.
 export const apiVerifyPayment = async (payload) => {
   const result = await safeFetchJson(`${API_BASE_URL}/payments/verify`, {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify(payload)
   });
-  if (result.ok && result.data?.success) return result.data;
-  throw new Error(result.data?.message || 'Payment verification failed');
-};
 
-export const apiRejectProposal = async (proposalId) => {
-  const result = await safeFetchJson(`${API_BASE_URL}/proposals/${proposalId}/reject`, { method: 'POST', headers: getHeaders() });
-  if (result.ok && result.data?.success) return result.data;
-  throw new Error(result.data?.message || 'Could not reject proposal');
-};
+  if (result.ok && result.data?.success) {
+    return result.data;
+  }
 
-export const apiGenerateProjectDescription = async (details) => {
-  const result = await safeFetchJson(`${API_BASE_URL}/ai/project-description`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(details) });
-  if (result.ok && result.data?.description) return result.data.description;
-  throw new Error(result.data?.message || 'Could not generate a description');
-};
-
-export const apiSearchProjects = async (filters = {}) => {
-  const params = new URLSearchParams();
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '' && value !== 'all') params.set(key, value);
-  });
-  const result = await safeFetchJson(`${API_BASE_URL}/projects?${params.toString()}`);
-  if (result.ok && result.data?.projects) return result.data;
-  throw new Error(result.data?.message || 'Could not load projects');
+  throw new Error(result.data?.message || 'Payment verification failed on server');
 };
 
 export const apiCancelMilestoneCheckout = async (contractId, milestoneId, orderId) => {
@@ -266,18 +274,18 @@ export const apiCancelMilestoneCheckout = async (contractId, milestoneId, orderI
     headers: getHeaders(),
     body: JSON.stringify({ orderId })
   });
+
   if (result.ok && result.data?.contract) return result.data.contract;
   throw new Error(result.data?.message || 'Could not cancel the payment checkout');
 };
 
-// Creates the freelancer's Razorpay Route Linked Account from bank/business details
-// they enter directly (no hosted onboarding redirect exists for Route, unlike Stripe).
 export const apiStartPayoutOnboarding = async (details) => {
   const result = await safeFetchJson(`${API_BASE_URL}/payments/connect/onboarding`, {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify(details)
   });
+
   if (result.ok) return result.data;
   throw new Error(result.data?.message || 'Could not create payout account');
 };
@@ -286,6 +294,7 @@ export const apiGetPayoutStatus = async () => {
   const result = await safeFetchJson(`${API_BASE_URL}/payments/connect/status`, {
     headers: getHeaders(false)
   });
+
   return result.ok ? result.data : { onboardingComplete: false };
 };
 
@@ -295,10 +304,12 @@ export const apiSubmitMilestone = async (contractId, milestoneId, submissionNote
     headers: getHeaders(),
     body: JSON.stringify({ submissionNotes })
   });
+
   if (result.ok && result.data && result.data.contract) {
     return result.data.contract;
   }
-  throw new Error('Submitting work failed');
+
+  throw new Error(result.data?.message || 'Submitting work failed');
 };
 
 export const apiReleaseMilestone = async (contractId, milestoneId) => {
@@ -306,16 +317,32 @@ export const apiReleaseMilestone = async (contractId, milestoneId) => {
     method: 'POST',
     headers: getHeaders()
   });
+
   if (result.ok && result.data && result.data.contract) {
     return result.data.contract;
   }
-  throw new Error('Releasing payment failed');
+
+  throw new Error(result.data?.message || 'Releasing payment failed');
 };
 
+// ---- REAL AI ENDPOINTS (GEMINI 3.6 FLASH) ----
+export const apiGenerateProjectDescription = async (details) => {
+  const result = await safeFetchJson(`${API_BASE_URL}/ai/project-description`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(details)
+  });
+
+  if (result.ok && result.data?.description) return result.data.description;
+  throw new Error(result.data?.message || 'AI service failed to generate description');
+};
+
+// ---- MESSAGES & WORKROOM ----
 export const apiFetchMessages = async (contractId) => {
   const result = await safeFetchJson(`${API_BASE_URL}/messages/${contractId}`, {
     headers: getHeaders(false)
   });
+
   if (result.ok && result.data && result.data.messages) {
     return result.data.messages;
   }
@@ -328,22 +355,20 @@ export const apiSendMessage = async (contractId, content) => {
     headers: getHeaders(),
     body: JSON.stringify({ content })
   });
+
   if (result.ok && result.data && result.data.message) {
     return result.data.message;
   }
-  return {
-    _id: 'msg_' + Date.now(),
-    contract: contractId,
-    content,
-    createdAt: new Date().toISOString()
-  };
+
+  throw new Error(result.data?.message || 'Failed to deliver message');
 };
 
-// ---- Notifications ----
-
+// ---- NOTIFICATIONS ----
 export const apiFetchNotifications = async () => {
-  const result = await safeFetchJson(`${API_BASE_URL}/notifications`, { headers: getHeaders(false) });
-  return result.ok ? result.data : { notifications: [], unreadCount: 0 };
+  const result = await safeFetchJson(`${API_BASE_URL}/notifications`, {
+    headers: getHeaders(false)
+  });
+  return result.ok && result.data ? result.data : { notifications: [], unreadCount: 0 };
 };
 
 export const apiMarkNotificationRead = async (id) => {
@@ -362,45 +387,41 @@ export const apiMarkAllNotificationsRead = async () => {
   return result.ok;
 };
 
-// ---- Avatar upload ----
-
+// ---- AVATAR UPLOAD ----
 export const apiUploadAvatar = async (file) => {
   const formData = new FormData();
   formData.append('avatar', file);
   const token = getAuthToken();
   const result = await safeFetchJson(`${API_BASE_URL}/uploads/avatar`, {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {}, // no Content-Type — browser sets multipart boundary
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData
   });
+
   if (result.ok && result.data) return result.data;
-  throw new Error(result.data?.message || 'Upload failed');
+  throw new Error(result.data?.message || 'Avatar upload failed');
 };
 
-// ---- Reviews ----
-
+// ---- REVIEWS ----
 export const apiSubmitReview = async (contractId, rating, comment) => {
   const result = await safeFetchJson(`${API_BASE_URL}/reviews`, {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify({ contractId, rating, comment })
   });
+
   if (result.ok && result.data) return result.data;
   throw new Error(result.data?.message || 'Could not submit review');
 };
 
 export const apiFetchUserReviews = async (userId) => {
-  const result = await safeFetchJson(`${API_BASE_URL}/reviews/user/${userId}`, { headers: getHeaders(false) });
+  const result = await safeFetchJson(`${API_BASE_URL}/reviews/user/${userId}`, {
+    headers: getHeaders(false)
+  });
   return result.ok ? (result.data.reviews || []) : [];
 };
 
-export const apiCheckAlreadyReviewed = async (contractId) => {
-  const result = await safeFetchJson(`${API_BASE_URL}/reviews/contract/${contractId}`, { headers: getHeaders(false) });
-  return result.ok ? result.data.alreadyReviewed : false;
-};
-
-// ---- Password reset ----
-
+// ---- PASSWORD RESET ----
 export const apiForgotPassword = async (email) => {
   const result = await safeFetchJson(`${API_BASE_URL}/auth/forgot-password`, {
     method: 'POST',
@@ -419,8 +440,7 @@ export const apiResetPassword = async (token, password) => {
   return result.ok ? result.data : { success: false, message: result.data?.message || 'Reset failed.' };
 };
 
-// ---- Contract dispute ----
-
+// ---- DISPUTES ----
 export const apiRaiseDispute = async (contractId, reason) => {
   const result = await safeFetchJson(`${API_BASE_URL}/contracts/${contractId}/dispute`, {
     method: 'POST',
