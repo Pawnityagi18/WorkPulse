@@ -1,155 +1,213 @@
-import mongoose from 'mongoose';
 import express from 'express';
 import Project from '../models/Project.js';
+import Proposal from '../models/Proposal.js';
+import Contract from '../models/Contract.js';
 import { protect, requireRole } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// GET /api/projects
+// GET /api/projects — Search and filter projects
 router.get('/', async (req, res) => {
   try {
-    const { category, search, skills, minBudget, maxBudget, budgetMin, budgetMax, projectType, experience, location, remote, datePosted, urgency, sort = 'newest', page = 1, limit = 12, client } = req.query;
-    let query = {};
+    const { search, category, maxBudget, urgency, sort, page = 1, limit = 12 } = req.query;
+    const query = {};
 
-    if (category && category !== 'All') {
-      query.category = category;
-    }
-    if (search?.trim()) {
-      const term = search.trim();
+    if (search && search.trim()) {
       query.$or = [
-        { title: { $regex: term, $options: 'i' } },
-        { description: { $regex: term, $options: 'i' } },
-        { skills: { $in: [new RegExp(term, 'i')] } },
-        { category: { $regex: term, $options: 'i' } },
-        { categoryName: { $regex: term, $options: 'i' } }
+        { title: { $regex: search.trim(), $options: 'i' } },
+        { description: { $regex: search.trim(), $options: 'i' } },
+        { skills: { $in: [new RegExp(search.trim(), 'i')] } }
       ];
     }
-    const skillList = String(skills || '').split(',').map(s => s.trim()).filter(Boolean);
-    if (skillList.length) query.skills = { $all: skillList.map(skill => new RegExp(`^${skill.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i')) };
-    const low = Number(minBudget ?? budgetMin);
-    const high = Number(maxBudget ?? budgetMax);
-    if (Number.isFinite(low) || Number.isFinite(high)) {
-      query.budget = {};
-      if (Number.isFinite(low)) query.budget.$gte = low;
-      if (Number.isFinite(high)) query.budget.$lte = high;
-    }
-    if (projectType && ['Fixed', 'Hourly'].includes(projectType)) query.budgetType = projectType;
-    if (experience) query.experience = experience;
-    if (location) query.location = { $regex: location, $options: 'i' };
-    if (remote === 'true') query.isRemote = true;
-    if (urgency && urgency !== 'all') query.urgency = urgency;
-    if (datePosted && datePosted !== 'all') {
-      const days = { day: 1, week: 7, month: 30 }[datePosted];
-      if (days) query.createdAt = { $gte: new Date(Date.now() - days * 86400000) };
-    }
-    if (client) {
-      query.client = client;
+
+    if (category && category !== 'all') {
+      query.$or = query.$or || [];
+      query.$or.push(
+        { category: category },
+        { categoryId: category },
+        { categoryName: new RegExp(category, 'i') }
+      );
     }
 
-   const pageNumber = Math.max(1, Number.parseInt(page, 10) || 1);
-const pageSize = Math.min(50, Math.max(1, Number.parseInt(limit, 10) || 12));
-const sortMap = {
-  'budget-high': { budget: -1 },
-  'budget-low': { budget: 1 },
-  proposals: { proposalsCount: -1 },
-  oldest: { createdAt: 1 },
-  newest: { createdAt: -1 },
-  latest: { createdAt: -1 }
-};
+    if (maxBudget) {
+      query.budget = { $lte: Number(maxBudget) };
+    }
 
-console.log('🔍 Mongoose readyState:', mongoose.connection.readyState);
-console.log('🔍 Mongoose host:', mongoose.connection.host);
-console.log('🔍 Mongoose DB:', mongoose.connection.name);
+    if (urgency && urgency !== 'all') {
+      query.urgency = urgency;
+    }
 
-const [projects, total] = await Promise.all([
-  Project.find(query)
-    .populate('client', 'name email avatar')
-      .sort(sortMap[sort] || sortMap.newest)
-      .skip((pageNumber - 1) * pageSize)
-      .limit(pageSize), Project.countDocuments(query)]);
+    let sortOptions = { createdAt: -1 };
+    if (sort === 'budget-high') sortOptions = { budget: -1 };
+    if (sort === 'budget-low') sortOptions = { budget: 1 };
+    if (sort === 'proposals') sortOptions = { proposalsCount: -1 };
+    if (sort === 'urgent') sortOptions = { urgency: -1, createdAt: -1 };
 
-    res.json({ success: true, count: projects.length, total, page: pageNumber, pages: Math.ceil(total / pageSize), projects });
+    const skip = (Number(page) - 1) * Number(limit);
+    const total = await Project.countDocuments(query);
+    const projects = await Project.find(query)
+      .populate('client', 'name email avatar rating')
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(Number(limit));
+
+    res.json({
+      success: true,
+      projects,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / Number(limit)) || 1
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// Clients may only change or remove their own projects. Projects with a contract
-// stay immutable so the agreed scope cannot be changed after hiring.
-router.patch('/:id', protect, requireRole('client'), async (req, res) => {
-  try {
-    const project = await Project.findById(req.params.id);
-    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
-    if (project.client.toString() !== req.user._id.toString()) return res.status(403).json({ success: false, message: 'Only the project owner can edit this project' });
-    if (project.status !== 'Open') return res.status(400).json({ success: false, message: 'Only open projects can be edited' });
-    const allowed = ['title', 'description', 'category', 'categoryId', 'categoryName', 'budget', 'budgetType', 'duration', 'deadline', 'daysLeft', 'urgency', 'skills', 'deliverables'];
-    for (const key of allowed) if (req.body[key] !== undefined) project[key] = req.body[key];
-    await project.save();
-    res.json({ success: true, project: await project.populate('client', 'name email avatar') });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
-});
-
-router.delete('/:id', protect, requireRole('client'), async (req, res) => {
-  try {
-    const project = await Project.findById(req.params.id);
-    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
-    if (project.client.toString() !== req.user._id.toString()) return res.status(403).json({ success: false, message: 'Only the project owner can delete this project' });
-    if (project.status !== 'Open') return res.status(400).json({ success: false, message: 'Only open projects can be deleted' });
-    await project.deleteOne();
-    res.json({ success: true });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
-});
-
-// GET /api/projects/:id
+// GET /api/projects/:id — Get specific project by ID
 router.get('/:id', async (req, res) => {
   try {
-    const project = await Project.findById(req.params.id).populate('client', 'name email avatar');
+    const project = await Project.findById(req.params.id)
+      .populate('client', 'name email avatar rating reviewsCount');
+
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found' });
     }
+
     res.json({ success: true, project });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// POST /api/projects (Client protection required)
+// POST /api/projects — Client creates project
 router.post('/', protect, requireRole('client'), async (req, res) => {
   try {
-    const {
-      title, description, category, categoryName, budget, skills, duration,
-      budgetType, deadline, daysLeft, urgency, deliverables
-    } = req.body;
+    const { title, description, category, categoryId, budget, urgency, skills, deadline } = req.body;
 
-    if (!title || !description || !category || !Number.isFinite(Number(budget)) || Number(budget) <= 0) {
-      return res.status(400).json({ success: false, message: 'Title, description, category, and a valid budget are required' });
+    if (!title || !description || !budget) {
+      return res.status(400).json({ success: false, message: 'Title, description, and budget are required.' });
     }
 
     const project = await Project.create({
-      title,
-      description,
-      category,
-      categoryId: category,
-      categoryName: categoryName || category,
-      budget,
+      title: title.trim(),
+      description: description.trim(),
+      category: category || 'development',
+      categoryId: categoryId || category || 'development',
+      budget: Number(budget),
+      urgency: urgency || 'Medium',
       skills: Array.isArray(skills) ? skills : (skills ? skills.split(',').map(s => s.trim()) : []),
-      duration: duration || '1-3 months',
-      budgetType: budgetType === 'Hourly' ? 'Hourly' : 'Fixed',
-      deadline,
-      daysLeft,
-      urgency: ['Featured', 'Urgent', 'Hot', 'Standard'].includes(urgency) ? urgency : 'Standard',
-      deliverables: Array.isArray(deliverables) ? deliverables : [],
+      deadline: deadline || undefined,
       client: req.user._id,
-      clientName: req.user.name,
-      clientAvatar: req.user.avatar,
-      verifiedClient: true,
       status: 'Open'
     });
 
-    const populated = await Project.findById(project._id).populate('client', 'name email avatar');
-    res.status(201).json({ success: true, project: populated });
+    const populatedProject = await Project.findById(project._id)
+      .populate('client', 'name email avatar rating');
+
+    res.status(201).json({ success: true, project: populatedProject });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PUT /api/projects/:id — Client updates open project
+router.put('/:id', protect, requireRole('client'), async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+
+    if (project.client.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to update this project.' });
+    }
+
+    if (project.status !== 'Open') {
+      return res.status(400).json({ success: false, message: 'Only open projects can be edited.' });
+    }
+
+    const { title, description, category, budget, urgency, skills } = req.body;
+    if (title) project.title = title.trim();
+    if (description) project.description = description.trim();
+    if (category) project.category = category;
+    if (budget) project.budget = Number(budget);
+    if (urgency) project.urgency = urgency;
+    if (skills) project.skills = Array.isArray(skills) ? skills : skills.split(',').map(s => s.trim());
+
+    await project.save();
+    const updated = await Project.findById(project._id).populate('client', 'name email avatar rating');
+
+    res.json({ success: true, project: updated });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// =========================================================================
+// 🌟 DELETE /api/projects/:id — STRICT OWNER-ONLY SAFE DELETION
+// =========================================================================
+router.delete('/:id', protect, requireRole('client'), async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+
+    // 1. STRICT OWNER AUTHORIZATION:
+    // Only the original client who posted the project can delete it
+    if (project.client.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized. Only the client who created this project can delete it.'
+      });
+    }
+
+    // 2. PROJECT STATUS GUARD:
+    // Must be in 'Open' status. In Progress or Completed cannot be deleted.
+    if (project.status !== 'Open') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete project in '${project.status}' status. Only open projects can be deleted.`
+      });
+    }
+
+    // 3. CONTRACT & FINANCIAL OBLIGATION GUARD:
+    // If ANY contract exists for this project (active, disputed, completed, cancelled, etc.)
+    // BLOCK deletion. Reason: Contractual, financial, milestone, and Razorpay audit trails must never be orphaned.
+    const existingContract = await Contract.findOne({ project: project._id });
+    if (existingContract) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete project: A contract already exists for this project. Historical, financial, and active contract records must be preserved.'
+      });
+    }
+
+    // 4. ACCEPTED PROPOSAL GUARD:
+    // If an accepted proposal exists, a hiring commitment exists — BLOCK deletion.
+    const hasAcceptedProposal = await Proposal.exists({
+      project: project._id,
+      status: 'Accepted'
+    });
+    if (hasAcceptedProposal) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete project: An accepted proposal exists for this project.'
+      });
+    }
+
+    // 5. PRUNE PENDING PROPOSALS & DELETE PROJECT:
+    // If only pending/unaccepted proposals exist and there is zero contract/escrow obligation:
+    // Clean up pending proposals first, then delete the project document.
+    await Proposal.deleteMany({ project: project._id, status: 'Pending' });
+    await project.deleteOne();
+
+    res.json({
+      success: true,
+      message: 'Project and associated pending proposals deleted successfully.'
+    });
+  } catch (error) {
+    console.error('Delete Project Error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to delete project.' });
   }
 });
 
