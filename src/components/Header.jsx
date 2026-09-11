@@ -15,8 +15,7 @@ import {
   Bell, 
   Camera,
   Briefcase,
-  TrendingUp,
-  Sparkles
+  TrendingUp
 } from 'lucide-react';
 import { 
   apiFetchNotifications, 
@@ -50,9 +49,8 @@ export default function Header({
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef(null);
 
-  // 🌟 LINKEDIN PRO SEARCH STATE
   const [searchFocused, setSearchFocused] = useState(false);
-  const [searchScope, setSearchScope] = useState('jobs'); // 'jobs' | 'talent'
+  const [searchScope, setSearchScope] = useState('jobs');
   const searchContainerRef = useRef(null);
 
   const TRENDING_SUGGESTIONS = [
@@ -68,7 +66,6 @@ export default function Header({
   const role = currentUser?.role;
   const isClient = isLoggedIn && role === 'client';
 
-  // Click outside to close LinkedIn search dropdown
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
@@ -129,10 +126,13 @@ export default function Header({
     }
   };
 
-  const handleDeleteAccountClick = () => {
-    if (window.confirm('⚠️ Are you sure you want to permanently delete your account? This action cannot be undone.')) {
-      onDeleteAccount();
+  // 🌟 REAL BACKEND ACCOUNT DELETION CALL
+  const handleDeleteAccountClick = async () => {
+    if (window.confirm('⚠️ Are you sure you want to delete your account? All open projects will be closed and personal information anonymized. Active escrow contracts must be resolved first.')) {
       setProfileDropdownOpen(false);
+      if (onDeleteAccount) {
+        await onDeleteAccount();
+      }
     }
   };
 
@@ -154,7 +154,6 @@ export default function Header({
     setMobileMenuOpen(false);
   };
 
-  // 🌟 LINKEDIN SUGGESTION CLICK
   const handleSelectSuggestion = (item) => {
     if (setSearchQuery) setSearchQuery(item.query);
     setSearchFocused(false);
@@ -195,10 +194,8 @@ export default function Header({
         gap: '1rem'
       }}>
         
-        {/* LEFT: BRAND LOGO + LINKEDIN-STYLE SEARCH BAR */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flex: isLoggedIn ? '1 1 auto' : 'initial', maxWidth: isLoggedIn ? '620px' : 'auto' }}>
           
-          {/* Logo */}
           <div 
             onClick={handleBrowseJobsClick} 
             style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', cursor: 'pointer', flexShrink: 0 }}
@@ -235,7 +232,6 @@ export default function Header({
             </div>
           </div>
 
-          {/* 🌟 OFFICIAL LINKEDIN SEARCH BAR WITH DROPDOWN (LOGGED IN ONLY) */}
           {isLoggedIn && (
             <div 
               ref={searchContainerRef}
@@ -296,7 +292,6 @@ export default function Header({
                 </button>
               )}
 
-              {/* 🌟 LINKEDIN-STYLE LIVE DROPDOWN POPUP */}
               {searchFocused && (
                 <div style={{
                   position: 'absolute',
@@ -311,7 +306,6 @@ export default function Header({
                   padding: '1rem',
                   zIndex: 1000
                 }}>
-                  {/* Scope Selector: Jobs vs Talent */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' }}>
                     <span style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 700 }}>Search in:</span>
                     <button
@@ -348,12 +342,10 @@ export default function Header({
                     </button>
                   </div>
 
-                  {/* Trending Searches Header */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '0.6rem' }}>
                     <TrendingUp size={13} color="#008080" /> Trending Searches
                   </div>
 
-                  {/* Suggestion List */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                     {TRENDING_SUGGESTIONS.map((item, idx) => (
                       <div
@@ -388,7 +380,6 @@ export default function Header({
 
         </div>
 
-        {/* RIGHT: NAVIGATION & USER ACTIONS */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
           
           <nav style={{ display: 'none', alignItems: 'center', gap: '0.4rem' }} className="desktop-only-nav">
@@ -502,6 +493,7 @@ export default function Header({
                         <LogOut size={14} /> Log Out
                       </button>
 
+                      {/* 🌟 REAL DELETE ACCOUNT ACTION */}
                       <button onClick={handleDeleteAccountClick} className="btn btn-secondary btn-sm" style={{ justifyContent: 'flex-start', color: '#EF4444', background: '#FEF2F2', border: '1px solid #FECACA' }}>
                         <Trash2 size={14} /> Delete Account
                       </button>
@@ -524,7 +516,6 @@ export default function Header({
 
       </div>
 
-      {/* MOBILE MENU */}
       {mobileMenuOpen && (
         <div style={{ background: 'rgba(255, 255, 255, 0.98)', backdropFilter: 'blur(16px)', borderBottom: '1px solid #E2E8F0', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {isLoggedIn && (
@@ -568,7 +559,6 @@ export default function Header({
         </div>
       )}
 
-      {/* RESPONSIVE CSS */}
       <style>{`
         header.workpulse-pure-glass-nav {
           position: sticky !important;

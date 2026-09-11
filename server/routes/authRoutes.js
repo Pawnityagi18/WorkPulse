@@ -1,148 +1,336 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import User from '../models/User.js';
-import { protect, JWT_SECRET } from '../middleware/authMiddleware.js';
-import { sendEmail } from '../config/mailer.js';
-import { authLimiter } from '../middleware/rateLimiter.js';
+import Contract from '../models/Contract.js';
+import Project from '../models/Project.js';
+import Proposal from '../models/Proposal.js';
+import Notification from '../models/Notification.js';
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, JWT_SECRET, { expiresIn: '7d' });
+const generateToken = (id, role) => {
+  return jwt.sign(
+    { id, role },
+    process.env.JWT_SECRET || 'workpulse_jwt_secret_key_2026',
+    { expiresIn: '30d' }
+  );
 };
 
-// GET /api/auth/me
-router.get('/me', protect, async (req, res) => {
-  res.json({ success: true, user: req.user });
+// POST /api/auth/signup
+router.post('/signup', async (req, res) => {
+  try {
+    const { name, email, password, role, gender, profession, avatar } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const existingUser = await User.findOne({ email: cleanEmail });
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: 'An account with this email already exists.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const user = await User.create({
+      name: name.trim(),
+      email: cleanEmail,
+      password: hashedPassword,
+      role: role === 'client' ? 'client' : 'freelancer',
+      gender: gender || 'other',
+      profession: profession?.trim() || (role === 'client' ? 'Employer' : 'Freelancer'),
+      avatar: avatar || undefined
+    });
+
+    const token = generateToken(user._id, user.role);
+
+    res.status(201).json({
+      success: true,
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        rating: user.rating || 5.0
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'Registration failed.' });
+  }
 });
 
 // POST /api/auth/login
-router.post('/login', authLimiter, async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Please provide email and password' });
+      return res.status(400).json({ success: false, message: 'Please provide email and password.' });
     }
 
-    const user = await User.findOne({ email }).select('+password');
+    const cleanEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: cleanEmail });
 
-    if (!user || !(await user.matchPassword(password))) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+    if (!user || user.isDeleted) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
     }
 
-    const userObj = user.toObject();
-    delete userObj.password;
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+    }
+
+    const token = generateToken(user._id, user.role);
 
     res.json({
       success: true,
-      user: userObj,
-      token: generateToken(user._id)
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        rating: user.rating || 5.0
+      }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message || 'Login failed.' });
   }
 });
 
-// POST /api/auth/signup
-router.post('/signup', authLimiter, async (req, res) => {
+// POST /api/auth/google — Server-Verified Google OAuth
+router.post('/google', async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
-
-    if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: 'Please fill in all required fields' });
+    const { credential, role } = req.body;
+    if (!credential) {
+      return res.status(400).json({ success: false, message: 'Google credential token is required.' });
     }
 
-    let existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: 'User already exists with this email' });
+    const googleVerifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+    if (!googleVerifyRes.ok) {
+      const errData = await googleVerifyRes.json().catch(() => ({}));
+      return res.status(401).json({
+        success: false,
+        message: errData.error_description || 'Invalid or expired Google credential.'
+      });
     }
 
-    const user = await User.create({
-      name,
-      email,
-      password,
-      role: role || 'freelancer',
-      avatar: role === 'client' 
-        ? 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80'
-        : 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&auto=format&fit=crop&q=80'
-    });
+    const payload = await googleVerifyRes.json();
 
-    const userObj = user.toObject();
-    delete userObj.password;
+    if (!payload.email || (payload.email_verified !== 'true' && payload.email_verified !== true)) {
+      return res.status(401).json({ success: false, message: 'Google email is not verified.' });
+    }
+
+    if (process.env.GOOGLE_CLIENT_ID && payload.aud !== process.env.GOOGLE_CLIENT_ID) {
+      return res.status(401).json({ success: false, message: 'Google Client ID mismatch.' });
+    }
+
+    const email = payload.email.toLowerCase().trim();
+    const name = payload.name || payload.given_name || 'Google User';
+    const avatar = payload.picture || null;
+    const googleId = payload.sub;
+
+    let user = await User.findOne({ email });
+
+    if (user) {
+      if (user.isDeleted) {
+        return res.status(403).json({ success: false, message: 'This account has been deleted.' });
+      }
+      let modified = false;
+      if (!user.googleId) {
+        user.googleId = googleId;
+        modified = true;
+      }
+      if (!user.avatar && avatar) {
+        user.avatar = avatar;
+        modified = true;
+      }
+      if (modified) await user.save();
+    } else {
+      const randomPassword = crypto.randomBytes(32).toString('hex');
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(randomPassword, salt);
+      const assignedRole = (role === 'client') ? 'client' : 'freelancer';
+
+      user = await User.create({
+        name,
+        email,
+        password: hashedPassword,
+        role: assignedRole,
+        avatar: avatar || undefined,
+        googleId,
+        isVerified: true
+      });
+    }
+
+    const token = generateToken(user._id, user.role);
 
     res.json({
       success: true,
-      user: userObj,
-      token: generateToken(user._id)
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        rating: user.rating || 5.0
+      }
     });
+  } catch (error) {
+    console.error('Google Auth Error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Server error during Google authentication.' });
+  }
+});
+
+// GET /api/auth/me
+router.get('/me', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('-password');
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+    res.json({ success: true, user });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// POST /api/auth/forgot-password — generates a reset token and emails a reset link.
-// Always responds with the same success message whether or not the email exists,
-// so this endpoint can't be used to check which emails are registered.
-router.post('/forgot-password', authLimiter, async (req, res) => {
+// 🌟 DELETE /api/auth/me — Real Account Deletion & Data Anonymization Flow
+router.delete('/me', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // 1. Pre-flight Safety Check: Find all contracts where user is client or freelancer
+    const userContracts = await Contract.find({
+      $or: [{ client: userId }, { freelancer: userId }]
+    });
+
+    const hasActiveContract = userContracts.some(c => c.status === 'active' || c.status === 'disputed');
+    const hasUnfinishedMilestone = userContracts.some(c =>
+      c.milestones && c.milestones.some(m =>
+        ['funded', 'submitted', 'payment_processing'].includes(m.status)
+      )
+    );
+
+    // BLOCK DELETION if active contracts or escrow funds exist
+    if (hasActiveContract || hasUnfinishedMilestone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete account: You have active contracts or pending escrow milestones. Please complete, release, or cancel all active obligations before deleting your account.'
+      });
+    }
+
+    // 2. Safe Record Deletions (Non-audited, non-financial data)
+    // Delete notifications
+    await Notification.deleteMany({ recipient: userId });
+
+    // Delete only pending/unaccepted proposals submitted by this user
+    await Proposal.deleteMany({ freelancer: userId, status: 'Pending' });
+
+    // For clients: Delete only genuinely open/uncontracted projects that have no accepted proposals or contracts
+    const contractedProjectIds = userContracts.map(c => c.project).filter(Boolean);
+    const openProjects = await Project.find({
+      client: userId,
+      status: 'Open',
+      _id: { $nin: contractedProjectIds }
+    });
+
+    for (const proj of openProjects) {
+      const hasAcceptedProposal = await Proposal.exists({ project: proj._id, status: 'Accepted' });
+      if (!hasAcceptedProposal) {
+        await Proposal.deleteMany({ project: proj._id, status: 'Pending' });
+        await Project.findByIdAndDelete(proj._id);
+      }
+    }
+
+    // 3. Soft-delete and Anonymize User document (Preserves historical foreign-key integrity)
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    user.name = 'Deleted User';
+    user.email = `deleted_${user._id}@anonymized.workpulse`;
+    const randomPassword = crypto.randomBytes(32).toString('hex');
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(randomPassword, salt);
+    user.avatar = null;
+    user.bio = '';
+    user.skills = [];
+    user.razorpayAccountId = null;
+    user.razorpayOnboardingComplete = false;
+    user.isDeleted = true;
+    user.deletedAt = new Date();
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Account deleted and personal data anonymized successfully.'
+    });
+  } catch (error) {
+    console.error('Account Deletion Error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to delete account on server.' });
+  }
+});
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ success: false, message: 'Email is required.' });
 
-    const user = await User.findOne({ email });
-    const genericResponse = { success: true, message: 'If an account with that email exists, a reset link has been sent.' };
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ success: false, message: 'No user with that email.' });
+    }
 
-    if (!user) return res.json(genericResponse); // don't reveal whether the email exists
-
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    user.resetPasswordToken = crypto.createHash('sha256').update(rawToken).digest('hex');
-    user.resetPasswordExpires = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+    const resetToken = crypto.randomBytes(20).toString('hex');
+    user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    user.resetPasswordExpire = Date.now() + 3600000;
     await user.save();
 
-    const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
-    const resetUrl = `${frontendUrl}/?resetToken=${rawToken}`;
-
-    await sendEmail({
-      to: user.email,
-      subject: 'Reset your WorkPulse password',
-      text: `You requested a password reset. Click this link (valid for 30 minutes): ${resetUrl}\n\nIf you didn't request this, ignore this email.`,
-      html: `<p>You requested a password reset. This link is valid for 30 minutes:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>If you didn't request this, ignore this email.</p>`
-    });
-
-    res.json(genericResponse);
+    console.log(`[WorkPulse Password Reset Token] ${resetToken}`);
+    res.json({ success: true, message: 'Password reset link generated.' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// POST /api/auth/reset-password — sets a new password given a valid, unexpired token
-router.post('/reset-password', authLimiter, async (req, res) => {
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
   try {
     const { token, password } = req.body;
     if (!token || !password) {
-      return res.status(400).json({ success: false, message: 'Token and new password are required.' });
-    }
-    if (password.length < 6) {
-      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
+      return res.status(400).json({ success: false, message: 'Token and new password required.' });
     }
 
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
-      resetPasswordExpires: { $gt: new Date() }
-    }).select('+resetPasswordToken +resetPasswordExpires');
+      resetPasswordExpire: { $gt: Date.now() }
+    });
 
-    if (!user) {
-      return res.status(400).json({ success: false, message: 'Reset link is invalid or has expired.' });
+    if (!user || user.isDeleted) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired reset token.' });
     }
 
-    user.password = password; // re-hashed automatically by the pre-save hook
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
     user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
+    user.resetPasswordExpire = undefined;
     await user.save();
 
-    res.json({ success: true, message: 'Password reset successfully. You can now log in.' });
+    res.json({ success: true, message: 'Password reset successfully.' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

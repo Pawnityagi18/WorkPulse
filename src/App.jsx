@@ -25,6 +25,7 @@ import {
   apiRejectProposal,
   apiFetchFreelancers,
   apiDirectHire,
+  apiDeleteAccount,
   setAuthToken,
   checkServerHealth 
 } from './api/client';
@@ -270,6 +271,21 @@ export default function App() {
     showToast('Logged out successfully', 'info');
   };
 
+  // 🌟 REAL BACKEND ACCOUNT DELETION HANDLER
+  const handleDeleteAccount = async () => {
+    try {
+      await apiDeleteAccount();
+      setCurrentUser(null);
+      setAuthToken(null);
+      setContracts([]);
+      setActiveTab('explore');
+      showToast('Your account has been deleted and personal data anonymized.', 'info');
+    } catch (err) {
+      // KEEP ACCOUNT & SESSION INTACT ON ERROR!
+      showToast(err.message || 'Could not delete account', 'error');
+    }
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header 
@@ -283,7 +299,7 @@ export default function App() {
         currentUser={currentUser}
         onOpenAuthModal={(mode) => setActiveTab(mode)}
         onLogout={handleLogout}
-        onDeleteAccount={handleLogout}
+        onDeleteAccount={handleDeleteAccount}
         onUpdateUser={(u) => setCurrentUser(u)}
         onBrowseJobs={handleBrowseJobs}
         searchQuery={searchQuery}

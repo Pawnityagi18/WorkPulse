@@ -1,33 +1,104 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
 
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true, select: false },
-  role: { type: String, enum: ['freelancer', 'client', 'admin'], required: true },
-  avatar: { type: String },
-  title: { type: String },
-  rating: { type: Number, default: 5.0 },
-  reviewsCount: { type: Number, default: 0 },
-  hourlyRate: { type: Number },
-  jobSuccessRate: { type: Number, default: 100 },
-  skills: [{ type: String }],
-  bio: { type: String },
-  razorpayAccountId: { type: String }, // Route Linked Account id (acc_...) for freelancer payouts
-  razorpayOnboardingComplete: { type: Boolean, default: false },
-  resetPasswordToken: { type: String, select: false },
-  resetPasswordExpires: { type: Date, select: false }
-}, { timestamps: true });
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true
+    },
+    password: {
+      type: String,
+      required: true
+    },
+    role: {
+      type: String,
+      enum: ['client', 'freelancer', 'admin'],
+      default: 'freelancer'
+    },
+    avatar: {
+      type: String,
+      default: null
+    },
+    profession: {
+      type: String,
+      default: ''
+    },
+    title: {
+      type: String,
+      default: ''
+    },
+    bio: {
+      type: String,
+      default: ''
+    },
+    skills: {
+      type: [String],
+      default: []
+    },
+    gender: {
+      type: String,
+      enum: ['male', 'female', 'other'],
+      default: 'other'
+    },
+    rating: {
+      type: Number,
+      default: 5.0
+    },
+    reviewsCount: {
+      type: Number,
+      default: 0
+    },
+    hourlyRate: {
+      type: Number,
+      default: 45
+    },
+    location: {
+      type: String,
+      default: 'Remote'
+    },
+    googleId: {
+      type: String,
+      default: null
+    },
+    isVerified: {
+      type: Boolean,
+      default: false
+    },
+    resetPasswordToken: String,
+    resetPasswordExpire: Date,
+    razorpayAccountId: {
+      type: String,
+      default: null
+    },
+    razorpayOnboardingComplete: {
+      type: Boolean,
+      default: false
+    },
+    razorpayAccountStatus: {
+      type: String,
+      default: 'unregistered'
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false
+    },
+    deletedAt: {
+      type: Date,
+      default: null
+    }
+  },
+  {
+    timestamps: true
+  }
+);
 
-userSchema.pre('save', async function () {
-  if (!this.isModified('password')) return;
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-});
-
-userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
-};
-
-export default mongoose.model('User', userSchema);
+const User = mongoose.models.User || mongoose.model('User', userSchema);
+export default User;
