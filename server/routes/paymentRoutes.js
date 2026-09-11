@@ -24,11 +24,6 @@ const razorpayUnavailable = (res) => res.status(503).json({
 
 // =========================================================================
 // FREELANCER PAYOUT ONBOARDING (RAZORPAY ROUTE LINKED ACCOUNT)
-// FIX:
-// 1. Hardcoded placeholder PAN completely removed — real PAN validated.
-// 2. Associates payout bank account with Linked Account via Route Settlements API.
-// 3. Sensitive bank/PAN details are NEVER saved to MongoDB.
-// 4. razorpayOnboardingComplete is verified strictly against Razorpay gateway status.
 // =========================================================================
 router.post('/connect/onboarding', protect, requireRole('freelancer'), async (req, res) => {
   try {
@@ -36,7 +31,6 @@ router.post('/connect/onboarding', protect, requireRole('freelancer'), async (re
 
     const { name, email, phone, businessName, accountNumber, ifscCode, beneficiaryName, pan } = req.body;
 
-    // 1. Strict required fields validation
     if (!name || !email || !phone || !accountNumber || !ifscCode || !beneficiaryName || !pan) {
       return res.status(400).json({
         success: false,
@@ -44,7 +38,6 @@ router.post('/connect/onboarding', protect, requireRole('freelancer'), async (re
       });
     }
 
-    // 2. Real PAN Format Validation (No placeholder allowed)
     const cleanPan = pan.trim().toUpperCase();
     if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(cleanPan)) {
       return res.status(400).json({
@@ -53,7 +46,6 @@ router.post('/connect/onboarding', protect, requireRole('freelancer'), async (re
       });
     }
 
-    // 3. Bank Account & IFSC Format Validation
     const cleanIfsc = ifscCode.trim().toUpperCase();
     if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(cleanIfsc)) {
       return res.status(400).json({
@@ -73,7 +65,7 @@ router.post('/connect/onboarding', protect, requireRole('freelancer'), async (re
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
-    // 4. Create Linked Account via Razorpay SDK (razorpay.accounts.create)
+    // Create Linked Account via Razorpay SDK
     const accountPayload = {
       email: email.trim(),
       phone: phone.trim(),
@@ -101,8 +93,7 @@ router.post('/connect/onboarding', protect, requireRole('freelancer'), async (re
 
     const account = await razorpay.accounts.create(accountPayload);
 
-    // 5. Associate Payout Settlement Bank Account with the Linked Account
-    // Uses Razorpay Route Product Configuration API over HTTPS
+    // Associate Payout Settlement Bank Account with Linked Account
     const authHeader = 'Basic ' + Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64');
     
     let productData = null;
@@ -124,7 +115,6 @@ router.post('/connect/onboarding', protect, requireRole('freelancer'), async (re
       }
 
       if (productData?.id) {
-        // Link settlement bank account to product configuration
         const patchRes = await fetch(`https://api.razorpay.com/v2/accounts/${account.id}/products/${productData.id}`, {
           method: 'PATCH',
           headers: {
@@ -150,16 +140,17 @@ router.post('/connect/onboarding', protect, requireRole('freelancer'), async (re
       console.warn('Route settlement bank association notice:', settlementErr.message);
     }
 
-    // 6. Strict Payout Account Readiness Verification:
-    // In live mode: strictly requires active/activated state from Razorpay
-    // In test mode: requires verified account entity created with product config accepted
-    const isLiveMode = process.env.RAZORPAY_KEY_ID && !process.env.RAZORPAY_KEY_ID.startsWith('rzp_test_');
-    const isConfiguredForPayouts = isLiveMode
-      ? (account.status === 'activated' || productData?.activation_status === 'activated')
-      : Boolean(account.id && (productData?.id || account.status === 'created'));
+    // 🌟 STRICT PAYOUT READINESS CHECK (TEST & LIVE MODES ALIKE):
+    // Under NO circumstances is Boolean(account.id) or status === 'created' accepted as ready.
+    // razorpayOnboardingComplete is true ONLY when Razorpay confirms the setup is 'activated' or 'active'.
+    const isConfiguredForPayouts = Boolean(
+      account?.status === 'activated' ||
+      account?.status === 'active' ||
+      productData?.activation_status === 'activated' ||
+      productData?.activation_status === 'active'
+    );
 
-    // 🔒 7. SENSITIVE CREDENTIAL HYGIENE:
-    // Raw bank account number, IFSC, and PAN are NEVER stored in MongoDB.
+    // 🔒 SENSITIVE CREDENTIAL HYGIENE: Never store raw bank details in MongoDB.
     user.razorpayAccountId = account.id;
     user.razorpayOnboardingComplete = isConfiguredForPayouts;
     user.razorpayAccountStatus = productData?.activation_status || account.status || 'created';
@@ -194,7 +185,7 @@ router.get('/connect/status', protect, requireRole('freelancer'), async (req, re
       });
     }
 
-    let isReady = Boolean(user.razorpayOnboardingComplete);
+    let isReady = false;
     let currentStatus = user.razorpayAccountStatus || 'created';
 
     // Verify live status directly with Razorpay SDK
@@ -203,16 +194,25 @@ router.get('/connect/status', protect, requireRole('freelancer'), async (req, re
         const remoteAcc = await razorpay.accounts.fetch(user.razorpayAccountId);
         if (remoteAcc) {
           currentStatus = remoteAcc.status || currentStatus;
-          const isLiveMode = process.env.RAZORPAY_KEY_ID && !process.env.RAZORPAY_KEY_ID.startsWith('rzp_test_');
-          isReady = isLiveMode ? (remoteAcc.status === 'activated') : Boolean(remoteAcc.id);
           
-          if (user.razorpayOnboardingComplete !== isReady) {
+          // 🌟 STRICT READINESS RULE: Requires confirmed 'activated' or 'active' from Razorpay.
+          isReady = Boolean(
+            remoteAcc.status === 'activated' ||
+            remoteAcc.status === 'active'
+          );
+          
+          if (user.razorpayOnboardingComplete !== isReady || user.razorpayAccountStatus !== currentStatus) {
             user.razorpayOnboardingComplete = isReady;
             user.razorpayAccountStatus = currentStatus;
             await user.save();
           }
         }
       } catch {}
+    } else {
+      isReady = Boolean(
+        user.razorpayAccountStatus === 'activated' ||
+        user.razorpayAccountStatus === 'active'
+      );
     }
 
     res.json({
