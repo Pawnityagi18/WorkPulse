@@ -131,7 +131,7 @@ router.post('/:id/milestones/:milestoneId/submit', protect, async (req, res) => 
 
 // =========================================================================
 // POST /api/contracts/:id/milestones/:milestoneId/release
-// IDEMPOTENT MILESTONE RELEASE: Blocks duplicate transfers if milestone.razorpayTransferId exists
+// ENHANCED: GATEWAY TRANSFER RECONCILIATION & ATOMIC RECOVERY
 // =========================================================================
 router.post('/:id/milestones/:milestoneId/release', protect, async (req, res) => {
   try {
@@ -140,6 +140,7 @@ router.post('/:id/milestones/:milestoneId/release', protect, async (req, res) =>
       return res.status(404).json({ success: false, message: 'Contract not found' });
     }
 
+    // Client ownership check
     if (contract.client.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Only the client can release milestone payments.' });
     }
@@ -149,18 +150,26 @@ router.post('/:id/milestones/:milestoneId/release', protect, async (req, res) =>
       return res.status(404).json({ success: false, message: 'Milestone not found in contract.' });
     }
 
-    // 🌟 STRICT IDEMPOTENCY CHECK:
-    // Before creating a transfer, check existing transfer ID and status.
-    // If milestone is already released OR milestone.razorpayTransferId already exists, NEVER create another Razorpay transfer!
+    const contractIdStr = contract._id.toString();
+    const milestoneIdStr = milestone._id.toString();
+
+    // 1. IN-DATABASE IDEMPOTENCY CHECK
     if (milestone.status === 'released' || milestone.razorpayTransferId) {
-      // Sync status to released if transfer ID exists from previous attempt
       if (milestone.status !== 'released') {
-        milestone.status = 'released';
-        milestone.releasedAt = milestone.releasedAt || new Date();
-        milestone.platformFee = milestone.platformFee || Math.round(Number(milestone.amount) * (PLATFORM_FEE_PERCENT / 100) * 100) / 100;
+        await Contract.updateOne(
+          { _id: contract._id, 'milestones._id': milestone._id },
+          {
+            $set: {
+              'milestones.$.status': 'released',
+              'milestones.$.releasedAt': milestone.releasedAt || new Date(),
+              'milestones.$.platformFee': milestone.platformFee || Math.round(Number(milestone.amount) * (PLATFORM_FEE_PERCENT / 100) * 100) / 100
+            }
+          }
+        );
         const allReleased = contract.milestones.every(m => m.status === 'released');
-        if (allReleased) contract.status = 'completed';
-        await contract.save();
+        if (allReleased) {
+          await Contract.updateOne({ _id: contract._id }, { $set: { status: 'completed' } });
+        }
       }
 
       return res.status(200).json({
@@ -172,7 +181,7 @@ router.post('/:id/milestones/:milestoneId/release', protect, async (req, res) =>
       });
     }
 
-    // Must be in submitted state
+    // 2. STATE GUARD: Milestone MUST be in 'submitted' state
     if (milestone.status !== 'submitted') {
       return res.status(400).json({
         success: false,
@@ -180,7 +189,7 @@ router.post('/:id/milestones/:milestoneId/release', protect, async (req, res) =>
       });
     }
 
-    // Gateway configuration check
+    // 3. GATEWAY CONFIGURATION CHECK
     if (!isRazorpayConfigured || !razorpay) {
       return res.status(503).json({
         success: false,
@@ -188,15 +197,15 @@ router.post('/:id/milestones/:milestoneId/release', protect, async (req, res) =>
       });
     }
 
-    // Escrow payment check
+    // 4. ESCROW FUNDING VALIDATION
     if (!milestone.razorpayPaymentId) {
       return res.status(400).json({
         success: false,
-        message: 'No captured escrow payment ID found for this milestone.'
+        message: 'No captured escrow payment ID found for this milestone. Payout cannot proceed.'
       });
     }
 
-    // Verify payment status with Razorpay
+    // 5. LIVE CAPTURED PAYMENT STATUS CHECK WITH RAZORPAY
     let paymentDetails;
     try {
       paymentDetails = await razorpay.payments.fetch(milestone.razorpayPaymentId);
@@ -214,33 +223,107 @@ router.post('/:id/milestones/:milestoneId/release', protect, async (req, res) =>
       });
     }
 
-    // Verify freelancer payout account
+    // 6. FREELANCER PAYOUT ACCOUNT READINESS CHECK
     const freelancer = await User.findById(contract.freelancer);
     if (!freelancer || !freelancer.razorpayAccountId || !freelancer.razorpayOnboardingComplete) {
       return res.status(400).json({
         success: false,
-        message: 'Freelancer has not set up a verified Razorpay payout account.'
+        message: 'Freelancer has not completed verified Razorpay Route payout onboarding.'
       });
     }
 
-    // 10% WorkPulse fee calculation and 90% net payout in paise
+    // 7. CALCULATION: 10% Platform Fee, Net to Freelancer in Paise
     const gross = Number(milestone.amount);
     const platformFee = Math.round(gross * (PLATFORM_FEE_PERCENT / 100) * 100) / 100;
     const netAmount = Math.round((gross - platformFee) * 100) / 100;
     const transferAmountPaise = Math.round(netAmount * 100);
 
-    // EXECUTE ACTUAL RAZORPAY ROUTE TRANSFER
+    // =========================================================================
+    // 🌟 GATEWAY RECONCILIATION BEFORE TRANSFER (RECOVERY CHECK):
+    // Query Razorpay for transfers associated with this captured payment.
+    // Inspect transfer notes for contractId and milestoneId.
+    // If a matching transfer already exists on Razorpay, RECOVER it and DO NOT duplicate!
+    // =========================================================================
+    let existingTransfersList = [];
+    try {
+      let existingTransfersResponse = null;
+      if (typeof razorpay.payments.fetchTransfer === 'function') {
+        existingTransfersResponse = await razorpay.payments.fetchTransfer(milestone.razorpayPaymentId);
+      } else if (typeof razorpay.payments.fetchAllTransfers === 'function') {
+        existingTransfersResponse = await razorpay.payments.fetchAllTransfers(milestone.razorpayPaymentId);
+      } else {
+        const authHeader = 'Basic ' + Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64');
+        const res = await fetch(`https://api.razorpay.com/v1/payments/${milestone.razorpayPaymentId}/transfers`, {
+          headers: { Authorization: authHeader }
+        });
+        if (res.ok) existingTransfersResponse = await res.json();
+      }
+
+      existingTransfersList = existingTransfersResponse?.items || (Array.isArray(existingTransfersResponse) ? existingTransfersResponse : []);
+    } catch (fetchTransfersErr) {
+      console.warn('Notice while inspecting existing payment transfers:', fetchTransfersErr.message);
+    }
+
+    // Search for a transfer already made for this exact contract and milestone
+    const existingMatchingTransfer = existingTransfersList.find(t => {
+      const notes = t.notes || {};
+      return String(notes.contractId) === contractIdStr && String(notes.milestoneId) === milestoneIdStr;
+    });
+
+    if (existingMatchingTransfer && existingMatchingTransfer.id) {
+      const recoveredTransferId = existingMatchingTransfer.id;
+      const releasedDate = new Date();
+
+      // Atomically persist recovered transfer ID to MongoDB
+      await Contract.updateOne(
+        { _id: contract._id, 'milestones._id': milestone._id },
+        {
+          $set: {
+            'milestones.$.status': 'released',
+            'milestones.$.razorpayTransferId': recoveredTransferId,
+            'milestones.$.releasedAt': milestone.releasedAt || releasedDate,
+            'milestones.$.platformFee': platformFee
+          }
+        }
+      );
+
+      const updatedContract = await Contract.findById(contract._id);
+      const allReleased = updatedContract?.milestones?.every(m => m.status === 'released');
+      if (allReleased && updatedContract.status !== 'completed') {
+        await Contract.updateOne({ _id: contract._id }, { $set: { status: 'completed' } });
+        updatedContract.status = 'completed';
+      }
+
+      await createNotification(
+        contract.freelancer,
+        'milestone_released',
+        `Payment of ₹${netAmount} released for milestone "${milestone.title}". (Transfer ID: ${recoveredTransferId})`,
+        '/dashboard?tab=contracts'
+      );
+
+      return res.json({
+        success: true,
+        message: `Payment of ₹${netAmount} successfully transferred to freelancer via Razorpay Route.`,
+        contract: updatedContract || contract,
+        transferId: recoveredTransferId,
+        recoveredFromGateway: true
+      });
+    }
+
+    // =========================================================================
+    // 8. EXECUTE NEW RAZORPAY ROUTE TRANSFER (Only when NO existing transfer exists)
+    // =========================================================================
     let transferResponse;
     try {
       transferResponse = await razorpay.payments.transfer(milestone.razorpayPaymentId, {
         transfers: [{
           account: freelancer.razorpayAccountId,
           amount: transferAmountPaise,
-          currency: 'INR',
+          currency: paymentDetails.currency || 'INR',
           on_hold: 0,
           notes: {
-            contractId: contract._id.toString(),
-            milestoneId: milestone._id.toString(),
+            contractId: contractIdStr,
+            milestoneId: milestoneIdStr,
             milestoneTitle: milestone.title.substring(0, 30)
           }
         }]
@@ -256,25 +339,34 @@ router.post('/:id/milestones/:milestoneId/release', protect, async (req, res) =>
     const transferItem = transferResponse?.items?.[0] || transferResponse;
     const transferId = transferItem?.id;
 
-    if (!transferId || typeof transferId !== 'string') {
+    if (!transferId || typeof transferId !== 'string' || !transferId.startsWith('trf_')) {
       return res.status(502).json({
         success: false,
         message: 'Razorpay Route transfer did not return a valid transfer ID. Milestone remains unreleased.'
       });
     }
 
-    // ONLY AFTER SUCCESSFUL TRANSFER: Mark released and store transfer ID
-    milestone.status = 'released';
-    milestone.releasedAt = new Date();
-    milestone.platformFee = platformFee;
-    milestone.razorpayTransferId = transferId;
+    // 🌟 9. ATOMIC MONGODB PERSISTENCE:
+    // Persist transfer ID and released status immediately using atomic updateOne
+    const releasedDate = new Date();
+    await Contract.updateOne(
+      { _id: contract._id, 'milestones._id': milestone._id },
+      {
+        $set: {
+          'milestones.$.status': 'released',
+          'milestones.$.razorpayTransferId': transferId,
+          'milestones.$.releasedAt': releasedDate,
+          'milestones.$.platformFee': platformFee
+        }
+      }
+    );
 
-    const allReleased = contract.milestones.every(m => m.status === 'released');
-    if (allReleased) {
-      contract.status = 'completed';
+    const updatedContract = await Contract.findById(contract._id);
+    const allReleased = updatedContract?.milestones?.every(m => m.status === 'released');
+    if (allReleased && updatedContract.status !== 'completed') {
+      await Contract.updateOne({ _id: contract._id }, { $set: { status: 'completed' } });
+      updatedContract.status = 'completed';
     }
-
-    await contract.save();
 
     await createNotification(
       contract.freelancer,
@@ -286,7 +378,7 @@ router.post('/:id/milestones/:milestoneId/release', protect, async (req, res) =>
     return res.json({
       success: true,
       message: `Payment of ₹${netAmount} successfully transferred to freelancer via Razorpay Route.`,
-      contract,
+      contract: updatedContract || contract,
       transferId
     });
   } catch (error) {
