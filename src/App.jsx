@@ -30,12 +30,9 @@ import {
 } from './api/client';
 
 export default function App() {
-  // Real URL Navigation Sync (/login, /signup, /dashboard, etc.)
   const getInitialRoute = () => {
     const path = window.location.pathname.replace('/', '').toLowerCase();
-    if (['explore', 'freelancers', 'dashboard', 'login', 'signup'].includes(path)) {
-      return path;
-    }
+    if (['explore', 'freelancers', 'dashboard', 'login', 'signup'].includes(path)) return path;
     return 'explore';
   };
 
@@ -53,14 +50,11 @@ export default function App() {
   };
 
   useEffect(() => {
-    const handlePopState = () => {
-      setActiveTabState(getInitialRoute());
-    };
+    const handlePopState = () => setActiveTabState(getInitialRoute());
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Auth User
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem('workpulse_user');
@@ -70,25 +64,21 @@ export default function App() {
     }
   });
 
-  // 🌟 STRICT DATABASE STATES (NO LOCALSTORAGE DATABASE EMULATION)
   const [projects, setProjects] = useState([]);
   const [freelancers, setFreelancers] = useState([]);
   const [proposals, setProposals] = useState([]);
   const [contracts, setContracts] = useState([]);
 
-  // Bookmarks (Only user IDs, no fake initial bookmarks)
   const [savedProjectIds, setSavedProjectIds] = useState(() => {
     try {
       const saved = localStorage.getItem('workpulse_saved_projects');
       const parsed = saved ? JSON.parse(saved) : [];
-      if (Array.isArray(parsed) && parsed.includes(1) && parsed.includes(3)) return [];
-      return Array.isArray(parsed) ? parsed : [];
+      return Array.isArray(parsed) && !(parsed.includes(1) && parsed.includes(3)) ? parsed : [];
     } catch {
       return [];
     }
   });
 
-  // Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [budgetRange, setBudgetRange] = useState(10000);
@@ -98,63 +88,39 @@ export default function App() {
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState('');
 
-  // Modals & Toast
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedFreelancer, setSelectedFreelancer] = useState(null);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // Sync bookmarks
   useEffect(() => {
-    try {
-      localStorage.setItem('workpulse_saved_projects', JSON.stringify(savedProjectIds));
-    } catch (e) {}
+    try { localStorage.setItem('workpulse_saved_projects', JSON.stringify(savedProjectIds)); } catch {}
   }, [savedProjectIds]);
 
-  // Sync logged in user
   useEffect(() => {
     try {
-      if (currentUser) {
-        localStorage.setItem('workpulse_user', JSON.stringify(currentUser));
-      } else {
-        localStorage.removeItem('workpulse_user');
-      }
-    } catch (e) {}
+      if (currentUser) localStorage.setItem('workpulse_user', JSON.stringify(currentUser));
+      else localStorage.removeItem('workpulse_user');
+    } catch {}
   }, [currentUser]);
 
   const loadContracts = async () => {
-    try {
-      const list = await apiFetchContracts();
-      setContracts(list || []);
-    } catch {
-      setContracts([]);
-    }
+    try { setContracts((await apiFetchContracts()) || []); } catch { setContracts([]); }
   };
 
   const loadFreelancers = async () => {
-    try {
-      const list = await apiFetchFreelancers();
-      setFreelancers(list || []);
-    } catch {
-      setFreelancers([]);
-    }
+    try { setFreelancers((await apiFetchFreelancers()) || []); } catch { setFreelancers([]); }
   };
 
-  // Initial Full-Stack API Sync from MongoDB
   useEffect(() => {
     const initServerSync = async () => {
       const isOnline = await checkServerHealth();
       setServerOnline(isOnline);
       if (isOnline) {
         const me = await apiFetchMe();
-        if (me) {
-          setCurrentUser(me);
-          setUserRole(me.role);
-        }
-        const remoteProjects = await apiFetchProjects();
-        setProjects(remoteProjects || []);
-        const remoteProposals = await apiFetchProposals();
-        setProposals(remoteProposals || []);
+        if (me) { setCurrentUser(me); setUserRole(me.role); }
+        setProjects((await apiFetchProjects()) || []);
+        setProposals((await apiFetchProposals()) || []);
         loadContracts();
         loadFreelancers();
       }
@@ -163,16 +129,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (currentUser) {
-      loadContracts();
-    }
+    if (currentUser) loadContracts();
   }, [currentUser]);
 
-  // Search & Filter Query Execution
   useEffect(() => {
     if (!serverOnline) return;
     const timer = setTimeout(async () => {
-      setProjectsLoading(true); 
+      setProjectsLoading(true);
       setProjectsError('');
       try {
         const result = await apiSearchProjects({ 
@@ -186,18 +149,16 @@ export default function App() {
         });
         setProjects(result.projects || []);
         setProjectSearchMeta({ total: result.total, page: result.page, pages: result.pages });
-      } catch (error) { 
-        setProjectsError(error.message); 
-      } finally { 
-        setProjectsLoading(false); 
+      } catch (error) {
+        setProjectsError(error.message);
+      } finally {
+        setProjectsLoading(false);
       }
     }, 300);
     return () => clearTimeout(timer);
   }, [serverOnline, searchQuery, selectedCategory, budgetRange, urgencyFilter, sortBy]);
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-  };
+  const showToast = (message, type = 'success') => setToast({ message, type });
 
   const handleBrowseJobs = () => {
     setSearchQuery('');
@@ -213,12 +174,11 @@ export default function App() {
     setSavedProjectIds(prev => {
       const isSaved = prev.includes(projectId);
       const next = isSaved ? prev.filter(id => id !== projectId) : [...prev, projectId];
-      showToast(isSaved ? 'Removed from saved projects' : 'Project saved to bookmarks!', 'info');
+      showToast(isSaved ? 'Removed from saved' : 'Project saved to bookmarks!', 'info');
       return next;
     });
   };
 
-  // 🌟 POST PROJECT: STRICT BACKEND CONFIRMATION
   const handleCreateProject = async (newProjData) => {
     if (!currentUser || currentUser.role !== 'client') {
       setIsPostModalOpen(false);
@@ -226,31 +186,19 @@ export default function App() {
       return;
     }
     try {
-      const newProject = {
-        title: newProjData.title,
-        description: newProjData.description,
-        category: newProjData.category,
-        categoryId: newProjData.category,
-        categoryName: newProjData.categoryName,
+      const savedResult = await apiCreateProject({
+        ...newProjData,
         budget: Number(newProjData.budget),
-        skills: newProjData.skills,
-        duration: newProjData.duration || '1-3 months',
-        budgetType: newProjData.budgetType,
-        deadline: newProjData.deadline,
-        daysLeft: newProjData.daysLeft,
-        urgency: newProjData.urgency,
-        deliverables: newProjData.deliverables
-      };
-      const savedResult = await apiCreateProject(newProject);
+        categoryId: newProjData.category
+      });
       setProjects(prev => [savedResult, ...prev]);
       setIsPostModalOpen(false);
-      showToast('🎉 Project posted successfully on WorkPulse!');
+      showToast('Project posted successfully');
     } catch (err) {
       showToast(err.message || 'Failed to post project', 'error');
     }
   };
 
-  // 🌟 SUBMIT PROPOSAL: STRICT BACKEND CONFIRMATION
   const handleSubmitProposal = async (proposalData) => {
     if (!currentUser || currentUser.role !== 'freelancer') {
       setSelectedProject(null);
@@ -258,32 +206,28 @@ export default function App() {
       return;
     }
     try {
-      const payload = {
+      const savedResult = await apiSubmitProposal({
         projectId: proposalData.projectId || proposalData.project,
         coverLetter: proposalData.coverLetter,
         bidAmount: Number(proposalData.bidAmount),
-        estimatedDays: Number(proposalData.estimatedDays || 7),
-        platformFee: Number(proposalData.platformFee || 0),
-        netAmount: Number(proposalData.netAmount || proposalData.bidAmount)
-      };
-      const savedResult = await apiSubmitProposal(payload);
+        estimatedDays: Number(proposalData.estimatedDays || 7)
+      });
       setProposals(prev => [savedResult, ...prev]);
       setSelectedProject(null);
-      showToast('🚀 Proposal submitted successfully to employer!');
+      showToast('Proposal submitted successfully');
     } catch (err) {
       showToast(err.message || 'Failed to submit proposal', 'error');
     }
   };
 
-  // 🌟 ACCEPT PROPOSAL: ZERO FAKE SUCCESS ON FAILURE
   const handleAcceptProposal = async (proposalId) => {
     try {
       await apiAcceptProposal(proposalId);
       setProposals(prev => prev.map(p => (p._id === proposalId || p.id === proposalId) ? { ...p, status: 'Accepted' } : p));
       await loadContracts();
-      showToast('🎉 Proposal accepted! Escrow contract initialized successfully.', 'success');
+      showToast('Proposal accepted. Contract created.', 'success');
     } catch (err) {
-      showToast(err.message || 'Failed to accept proposal on server', 'error');
+      showToast(err.message || 'Failed to accept proposal', 'error');
     }
   };
 
@@ -292,27 +236,19 @@ export default function App() {
       await apiRejectProposal(proposalId);
       setProposals(prev => prev.map(p => (p._id === proposalId || p.id === proposalId) ? { ...p, status: 'Declined' } : p));
       showToast('Proposal declined.', 'info');
-    } catch (error) { 
-      showToast(error.message || 'Could not decline proposal', 'error'); 
+    } catch (error) {
+      showToast(error.message || 'Could not decline proposal', 'error');
     }
   };
 
-  // 🌟 DIRECT HIRE: REAL BACKEND OPERATION
   const handleDirectHire = async (hireData) => {
-    if (!currentUser) {
-      setSelectedFreelancer(null);
-      setActiveTab('login');
-      return;
-    }
-    if (currentUser.role !== 'client') {
-      showToast('Only employers/clients can hire freelancers directly.', 'error');
-      return;
-    }
+    if (!currentUser) { setSelectedFreelancer(null); setActiveTab('login'); return; }
+    if (currentUser.role !== 'client') { showToast('Only clients can hire directly.', 'error'); return; }
     try {
       await apiDirectHire(selectedFreelancer?._id || selectedFreelancer?.id, hireData);
       setSelectedFreelancer(null);
       await loadContracts();
-      showToast(`🎉 Direct Hire contract sent to ${selectedFreelancer.name}!`, 'success');
+      showToast(`Direct Hire contract sent to ${selectedFreelancer.name}`, 'success');
     } catch (err) {
       showToast(err.message || 'Failed to send direct hire offer', 'error');
     }
@@ -336,8 +272,6 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      
-      {/* Header */}
       <Header 
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -356,39 +290,19 @@ export default function App() {
         setSearchQuery={setSearchQuery}
       />
 
-      {/* Main Routes */}
       <main style={{ flex: 1 }}>
-        
         {activeTab === 'login' && (
-          <AuthPage 
-            mode="login" 
-            onNavigate={(tab) => setActiveTab(tab)} 
-            onLoginSuccess={handleLoginSuccess} 
-          />
+          <AuthPage mode="login" onNavigate={(tab) => setActiveTab(tab)} onLoginSuccess={handleLoginSuccess} />
         )}
 
         {activeTab === 'signup' && (
-          <AuthPage 
-            mode="signup" 
-            onNavigate={(tab) => setActiveTab(tab)} 
-            onLoginSuccess={handleLoginSuccess} 
-          />
+          <AuthPage mode="signup" onNavigate={(tab) => setActiveTab(tab)} onLoginSuccess={handleLoginSuccess} />
         )}
 
         {activeTab === 'explore' && (
           <>
-            <Hero 
-              onNavigate={(tab) => setActiveTab(tab)} 
-              currentUser={currentUser} 
-            />
-
-            <CategoryGrid 
-              categories={CATEGORIES}
-              selectedCategory={selectedCategory}
-              onSelectCategory={setSelectedCategory}
-              projects={projects}
-            />
-
+            <Hero onNavigate={(tab) => setActiveTab(tab)} currentUser={currentUser} />
+            <CategoryGrid categories={CATEGORIES} selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} projects={projects} />
             <div id="project-list-section">
               {currentUser ? (
                 <ProjectList 
@@ -426,17 +340,9 @@ export default function App() {
 
         {activeTab === 'freelancers' && (
           currentUser ? (
-            <FreelancerList 
-              freelancers={freelancers}
-              onSelectFreelancer={(freelancer) => setSelectedFreelancer(freelancer)}
-            />
+            <FreelancerList freelancers={freelancers} onSelectFreelancer={(freelancer) => setSelectedFreelancer(freelancer)} />
           ) : (
-            <AuthGate
-              title="Log in to find talent"
-              message="Create a free client account to browse freelancer profiles and hire."
-              onLogin={() => setActiveTab('login')}
-              onSignup={() => setActiveTab('signup')}
-            />
+            <AuthGate title="Log in to find talent" message="Create a free client account to browse freelancer profiles and hire." onLogin={() => setActiveTab('login')} onSignup={() => setActiveTab('signup')} />
           )
         )}
 
@@ -458,57 +364,26 @@ export default function App() {
               onRefreshContracts={loadContracts}
             />
           ) : (
-            <AuthGate
-              title="Log in to view your workspace"
-              message="Log in to see your active proposals, projects, contracts, and messages."
-              onLogin={() => setActiveTab('login')}
-              onSignup={() => setActiveTab('signup')}
-            />
+            <AuthGate title="Log in to view your workspace" message="Log in to see your active proposals, projects, contracts, and messages." onLogin={() => setActiveTab('login')} onSignup={() => setActiveTab('signup')} />
           )
         )}
       </main>
 
-      {/* Footer */}
-      <Footer onNavigate={(tab) => {
-        if (tab === 'explore') handleBrowseJobs();
-        else setActiveTab(tab);
-      }} />
+      <Footer onNavigate={(tab) => { if (tab === 'explore') handleBrowseJobs(); else setActiveTab(tab); }} />
 
-      {/* Modals */}
       {selectedProject && (
-        <ProjectModal 
-          project={selectedProject}
-          onClose={() => setSelectedProject(null)}
-          onSubmitProposal={handleSubmitProposal}
-          currentUser={currentUser}
-          onRequireAuth={(mode) => { setSelectedProject(null); setActiveTab(mode); }}
-        />
+        <ProjectModal project={selectedProject} onClose={() => setSelectedProject(null)} onSubmitProposal={handleSubmitProposal} currentUser={currentUser} onRequireAuth={(mode) => { setSelectedProject(null); setActiveTab(mode); }} />
       )}
 
       {selectedFreelancer && (
-        <FreelancerModal 
-          freelancer={selectedFreelancer}
-          onClose={() => setSelectedFreelancer(null)}
-          onDirectHire={handleDirectHire}
-        />
+        <FreelancerModal freelancer={selectedFreelancer} onClose={() => setSelectedFreelancer(null)} onDirectHire={handleDirectHire} />
       )}
 
       {isPostModalOpen && (
-        <PostProjectModal 
-          categories={CATEGORIES}
-          onClose={() => setIsPostModalOpen(false)}
-          onSubmitProject={handleCreateProject}
-          currentUser={currentUser}
-        />
+        <PostProjectModal categories={CATEGORIES} onClose={() => setIsPostModalOpen(false)} onSubmitProject={handleCreateProject} currentUser={currentUser} />
       )}
 
-      {toast && (
-        <Toast 
-          message={toast.message} 
-          type={toast.type} 
-          onClose={() => setToast(null)} 
-        />
-      )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 }
