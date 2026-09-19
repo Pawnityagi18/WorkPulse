@@ -48,6 +48,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // ⬇️ YAHAN APNA GOOGLE CLIENT ID PASTE KIJIYE
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
 
   // Gender change handler
@@ -149,7 +150,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
         }
       }
     }
-  }, [isLogin, role, step]);
+  }, [isLogin, role, step, GOOGLE_CLIENT_ID]);
 
   // 🌟 GOOGLE AUTH RESPONSE: REAL BACKEND VERIFICATION
   const handleGoogleResponse = async (response) => {
@@ -157,23 +158,19 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
       setLoading(true);
       setErrorMsg('');
 
-      // Send Google credential token to backend
       const result = await apiGoogleAuth({ credential: response.credential });
 
       if (result && result.token) {
-        // Store WorkPulse tokens safely
         localStorage.setItem('workpulse_token', result.token);
         localStorage.setItem('token', result.token);
         localStorage.setItem('workpulse_user', JSON.stringify(result.user));
 
         if (isLogin || !result.isNewUser) {
-          // Direct login if user already exists
           if (onLoginSuccess) {
             onLoginSuccess(result.user, `Welcome back, ${result.user.name}!`);
           }
           onNavigate('explore');
         } else {
-          // New User: Open Step 2 to collect Gender and Profession
           setGoogleAuthUser(result.user);
           setName(result.user.name || '');
           setEmail(result.user.email || '');
@@ -193,16 +190,14 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
     }
   };
 
-  // Fallback if Google client ID isn't set yet
   const handleFallbackGoogle = () => {
     if (GOOGLE_CLIENT_ID.includes("YOUR_GOOGLE_CLIENT_ID")) {
-      setErrorMsg('Please add your VITE_GOOGLE_CLIENT_ID in your .env file to enable live Google Sign-In.');
+      setErrorMsg('Please add your Google Client ID on line 47 of AuthPage.jsx or in your .env file.');
       return;
     }
     window.google?.accounts?.id?.prompt();
   };
 
-  // Proceed to Step 2
   const handleProceedToStep2 = (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -223,7 +218,6 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
     setStep(2);
   };
 
-  // Final Form Submit (Step 2 Completed)
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -235,10 +229,8 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
       const profTitle = profession.trim() || defaultTitle;
 
       if (isLogin) {
-        // Normal Email Login
         result = await apiLogin({ email, password });
       } else if (googleAuthUser) {
-        // Google Signup Step 2 Completion
         const updateRes = await apiUpdateProfile({
           gender,
           profession: profTitle,
@@ -251,7 +243,6 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
           user: updateRes.user || { ...googleAuthUser, gender, profession: profTitle, title: profTitle, avatar, role }
         };
       } else {
-        // Normal Email Signup
         result = await apiSignup({ 
           name: name.trim(), 
           email: email.trim(), 
