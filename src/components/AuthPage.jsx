@@ -10,12 +10,10 @@ import {
   EyeOff, 
   Sparkles, 
   Camera, 
-  CheckCircle2, 
   Upload, 
-  ArrowRight,
-  UserCheck
+  ArrowRight
 } from 'lucide-react';
-import { apiLogin, apiSignup } from '../api/client';
+import { apiLogin, apiSignup, apiGoogleAuth, apiUpdateProfile } from '../api/client';
 
 export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess }) {
   const isLogin = mode === 'login';
@@ -30,6 +28,9 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   
+  // Google Auth Session tracker
+  const [googleAuthUser, setGoogleAuthUser] = useState(null);
+
   // Step 2 Fields
   const [gender, setGender] = useState('male');
   const [profession, setProfession] = useState('');
@@ -47,9 +48,9 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
 
-  // Gender badalne par avatar auto-switch
+  // Gender change handler
   const handleGenderChange = (selectedGender) => {
     setGender(selectedGender);
     if (!customAvatarUploaded) {
@@ -115,14 +116,20 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
 
   // Google SDK Init
   useEffect(() => {
+    if (window.google) {
+      initGoogleSignIn();
+      return;
+    }
+
     const script = document.createElement('script');
     script.src = 'https://accounts.google.com/gsi/client';
     script.async = true;
     script.defer = true;
+    script.onload = initGoogleSignIn;
     document.body.appendChild(script);
 
-    script.onload = () => {
-      if (window.google) {
+    function initGoogleSignIn() {
+      if (window.google && GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.includes("YOUR_GOOGLE_CLIENT_ID")) {
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: handleGoogleResponse
@@ -141,84 +148,61 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
           });
         }
       }
-    };
-
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
+    }
   }, [isLogin, role, step]);
 
-  // 🌟 GOOGLE AUTH RESPONSE: SIGNUP MEIN SEEDHE STEP 2 KHULEGA!
-  const handleGoogleResponse = (response) => {
+  // 🌟 GOOGLE AUTH RESPONSE: REAL BACKEND VERIFICATION
+  const handleGoogleResponse = async (response) => {
     try {
       setLoading(true);
-      const base64Url = response.credential.split('.');
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(
-        atob(base64).split('').map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
-      );
-      const payload = JSON.parse(jsonPayload);
+      setErrorMsg('');
 
-      setName(payload.name || '');
-      setEmail(payload.email || '');
-      if (payload.picture) {
-        setAvatar(payload.picture);
-        setCustomAvatarUploaded(true);
-      }
+      // Send Google credential token to backend
+      const result = await apiGoogleAuth({ credential: response.credential });
 
-      if (isLogin) {
-        // Login me direct success
-        const realGoogleUser = {
-          _id: 'google-' + payload.sub,
-          name: payload.name,
-          email: payload.email,
-          avatar: payload.picture || DEFAULT_AVATARS.male,
-          role: role,
-          verified: true
-        };
-        localStorage.setItem('token', response.credential);
-        localStorage.setItem('workpulse_user', JSON.stringify(realGoogleUser));
-        onLoginSuccess(realGoogleUser, `Welcome back, ${realGoogleUser.name}!`);
-        onNavigate('explore');
+      if (result && result.token) {
+        // Store WorkPulse tokens safely
+        localStorage.setItem('workpulse_token', result.token);
+        localStorage.setItem('token', result.token);
+        localStorage.setItem('workpulse_user', JSON.stringify(result.user));
+
+        if (isLogin || !result.isNewUser) {
+          // Direct login if user already exists
+          if (onLoginSuccess) {
+            onLoginSuccess(result.user, `Welcome back, ${result.user.name}!`);
+          }
+          onNavigate('explore');
+        } else {
+          // New User: Open Step 2 to collect Gender and Profession
+          setGoogleAuthUser(result.user);
+          setName(result.user.name || '');
+          setEmail(result.user.email || '');
+          if (result.user.avatar) {
+            setAvatar(result.user.avatar);
+            setCustomAvatarUploaded(true);
+          }
+          setStep(2);
+        }
       } else {
-        // Signup me 2ND FORM KHULEGA (Gender & Profession)!
-        setStep(2);
-        setErrorMsg('');
+        setErrorMsg('Google authentication failed on server');
       }
     } catch (err) {
-      setErrorMsg('Google Authentication failed. Please try again.');
+      setErrorMsg(err.message || 'Google Authentication failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Fallback if Google client ID isn't set yet
   const handleFallbackGoogle = () => {
-    if (isLogin) {
-      const simulatedName = name.trim() || 'Google User';
-      const simulatedEmail = email.trim() || 'user@gmail.com';
-      const googleUser = {
-        _id: 'google-user-' + Date.now(),
-        name: simulatedName,
-        email: simulatedEmail,
-        role: role,
-        avatar: avatar,
-        verified: true
-      };
-      localStorage.setItem('token', 'google_jwt_' + Date.now());
-      localStorage.setItem('workpulse_user', JSON.stringify(googleUser));
-      onLoginSuccess(googleUser, `Welcome back!`);
-      onNavigate('explore');
-    } else {
-      // Signup fallback me bhi Step 2 khulega!
-      setName(name.trim() || 'Google User');
-      setEmail(email.trim() || 'user@gmail.com');
-      setStep(2);
+    if (GOOGLE_CLIENT_ID.includes("YOUR_GOOGLE_CLIENT_ID")) {
+      setErrorMsg('Please add your VITE_GOOGLE_CLIENT_ID in your .env file to enable live Google Sign-In.');
+      return;
     }
+    window.google?.accounts?.id?.prompt();
   };
 
-  // 🌟 STEP 1 SUBMIT: VALIDATE KARKE STEP 2 KHOLNA
+  // Proceed to Step 2
   const handleProceedToStep2 = (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -236,10 +220,10 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
       return;
     }
 
-    setStep(2); // STEP 2 OPEN!
+    setStep(2);
   };
 
-  // 🌟 FINAL FORM SUBMIT (STEP 2 COMPLETED)
+  // Final Form Submit (Step 2 Completed)
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -247,25 +231,50 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
 
     try {
       let result;
+      const defaultTitle = role === 'client' ? 'Hiring Client' : 'Full-Stack Developer';
+      const profTitle = profession.trim() || defaultTitle;
+
       if (isLogin) {
+        // Normal Email Login
         result = await apiLogin({ email, password });
+      } else if (googleAuthUser) {
+        // Google Signup Step 2 Completion
+        const updateRes = await apiUpdateProfile({
+          gender,
+          profession: profTitle,
+          title: profTitle,
+          avatar,
+          role
+        });
+        result = {
+          token: localStorage.getItem('workpulse_token'),
+          user: updateRes.user || { ...googleAuthUser, gender, profession: profTitle, title: profTitle, avatar, role }
+        };
       } else {
+        // Normal Email Signup
         result = await apiSignup({ 
-          name, 
-          email, 
-          password: password || 'GoogleAuthPass2026!', 
+          name: name.trim(), 
+          email: email.trim(), 
+          password, 
           role,
           gender,
-          profession: profession.trim() || (role === 'client' ? 'Hiring Client' : 'Full-Stack Developer'),
+          profession: profTitle,
+          title: profTitle,
           avatar
         });
       }
 
-      if (result.token && onLoginSuccess) {
+      if (result && result.token) {
+        localStorage.setItem('workpulse_token', result.token);
         localStorage.setItem('token', result.token);
         localStorage.setItem('workpulse_user', JSON.stringify(result.user));
-        onLoginSuccess(result.user, isLogin ? `Welcome back, ${result.user.name}!` : 'Account created successfully!');
+
+        if (onLoginSuccess) {
+          onLoginSuccess(result.user, isLogin ? `Welcome back, ${result.user.name}!` : 'Account created successfully!');
+        }
         onNavigate('explore');
+      } else {
+        setErrorMsg(result?.message || 'Authentication failed. Please check your details.');
       }
     } catch (err) {
       setErrorMsg(err.message || (isLogin ? 'Login failed. Check credentials.' : 'Registration failed.'));
@@ -279,9 +288,10 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
       ? { _id: 'demo-client-1', name: 'Demo Employer', email: 'client.demo@workpulse.com', role: 'client', avatar: DEFAULT_AVATARS.male, isDemo: true }
       : { _id: 'demo-free-1', name: 'Elena Rostova', email: 'elena.rostova@dev.com', role: 'freelancer', avatar: DEFAULT_AVATARS.female, isDemo: true };
 
+    localStorage.setItem('workpulse_token', 'demo_jwt_token_' + demoRole);
     localStorage.setItem('token', 'demo_jwt_token_' + demoRole);
     localStorage.setItem('workpulse_user', JSON.stringify(demoUser));
-    onLoginSuccess(demoUser, `Logged in as ${demoUser.name} (${demoRole})`);
+    if (onLoginSuccess) onLoginSuccess(demoUser, `Logged in as ${demoUser.name} (${demoRole})`);
     onNavigate('explore');
   };
 
@@ -333,7 +343,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
           <ArrowLeft size={16} /> {!isLogin && step === 2 ? 'Back to Step 1' : 'Back to Marketplace'}
         </button>
 
-        {/* 🌟 STEP 1 & 2 INTERACTIVE TABS */}
+        {/* Step 1 & 2 Interactive Tabs */}
         {!isLogin && (
           <div style={{ marginBottom: '1.5rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.6rem' }}>
@@ -373,7 +383,6 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
                 2. Profile & Identity
               </button>
             </div>
-            {/* Progress Bar */}
             <div style={{ width: '100%', height: '4px', background: '#E2E8F0', borderRadius: '4px', overflow: 'hidden' }}>
               <div style={{ width: step === 1 ? '50%' : '100%', height: '100%', background: 'var(--primary)', transition: 'width 0.3s ease' }} />
             </div>
@@ -478,7 +487,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
               </div>
 
               <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', marginTop: '0.4rem' }}>
-                {loading ? 'Please wait…' : 'Login'}
+                {loading ? 'Signing in…' : 'Login'}
               </button>
             </form>
           </>
@@ -555,7 +564,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
                   cursor: 'pointer'
                 }}
               >
-                <span>Sign up with Google (Proceeds to Step 2)</span>
+                <span>Sign up with Google</span>
               </button>
             </div>
 
@@ -655,7 +664,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
         {!isLogin && step === 2 && (
           <form onSubmit={handleFinalSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             
-            {/* 1. AVATAR PREVIEW & CHANGE PHOTO */}
+            {/* 1. Avatar Preview */}
             <div style={{ textAlign: 'center', marginBottom: '0.25rem' }}>
               <div style={{ position: 'relative', width: '96px', height: '96px', margin: '0 auto 0.75rem' }}>
                 <img
@@ -721,7 +730,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
               </button>
             </div>
 
-            {/* 2. GENDER SELECTION (AUTO UPDATES AVATAR) */}
+            {/* 2. Gender Selection */}
             <div>
               <label className="form-label" style={{ marginBottom: '0.4rem', display: 'block' }}>
                 Select Gender:
@@ -790,7 +799,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
               </div>
             </div>
 
-            {/* 3. PROFESSION */}
+            {/* 3. Profession / Title */}
             <div>
               <label className="form-label">
                 {role === 'client' ? 'Company Name or Title' : 'Your Professional Title / Specialization'}
@@ -816,7 +825,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
               className="btn btn-primary"
               style={{ width: '100%', padding: '0.85rem', borderRadius: '12px', fontWeight: 800, marginTop: '0.5rem' }}
             >
-              {loading ? 'Creating Account…' : 'Complete Setup & Launch Workspace'}
+              {loading ? 'Completing Setup…' : 'Complete Setup & Launch Workspace'}
             </button>
           </form>
         )}

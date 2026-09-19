@@ -22,9 +22,7 @@ const razorpayUnavailable = (res) => res.status(503).json({
   message: 'Razorpay payment gateway is not configured on the server.'
 });
 
-// =========================================================================
-// FREELANCER PAYOUT ONBOARDING (RAZORPAY ROUTE LINKED ACCOUNT)
-// =========================================================================
+// POST /api/payments/connect/onboarding
 router.post('/connect/onboarding', protect, requireRole('freelancer'), async (req, res) => {
   try {
     if (!isRazorpayConfigured || !razorpay) return razorpayUnavailable(res);
@@ -65,7 +63,6 @@ router.post('/connect/onboarding', protect, requireRole('freelancer'), async (re
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
-    // Create Linked Account via Razorpay SDK
     const accountPayload = {
       email: email.trim(),
       phone: phone.trim(),
@@ -93,7 +90,6 @@ router.post('/connect/onboarding', protect, requireRole('freelancer'), async (re
 
     const account = await razorpay.accounts.create(accountPayload);
 
-    // Associate Payout Settlement Bank Account with Linked Account
     const authHeader = 'Basic ' + Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64');
     
     let productData = null;
@@ -110,9 +106,7 @@ router.post('/connect/onboarding', protect, requireRole('freelancer'), async (re
         })
       });
 
-      if (productRes.ok) {
-        productData = await productRes.json();
-      }
+      if (productRes.ok) productData = await productRes.json();
 
       if (productData?.id) {
         const patchRes = await fetch(`https://api.razorpay.com/v2/accounts/${account.id}/products/${productData.id}`, {
@@ -140,9 +134,6 @@ router.post('/connect/onboarding', protect, requireRole('freelancer'), async (re
       console.warn('Route settlement bank association notice:', settlementErr.message);
     }
 
-    // 🌟 STRICT PAYOUT READINESS CHECK (TEST & LIVE MODES ALIKE):
-    // Under NO circumstances is Boolean(account.id) or status === 'created' accepted as ready.
-    // razorpayOnboardingComplete is true ONLY when Razorpay confirms the setup is 'activated' or 'active'.
     const isConfiguredForPayouts = Boolean(
       account?.status === 'activated' ||
       account?.status === 'active' ||
@@ -150,7 +141,6 @@ router.post('/connect/onboarding', protect, requireRole('freelancer'), async (re
       productData?.activation_status === 'active'
     );
 
-    // 🔒 SENSITIVE CREDENTIAL HYGIENE: Never store raw bank details in MongoDB.
     user.razorpayAccountId = account.id;
     user.razorpayOnboardingComplete = isConfiguredForPayouts;
     user.razorpayAccountStatus = productData?.activation_status || account.status || 'created';
@@ -172,7 +162,7 @@ router.post('/connect/onboarding', protect, requireRole('freelancer'), async (re
   }
 });
 
-// GET /api/payments/connect/status — Live Payout Readiness Check
+// GET /api/payments/connect/status
 router.get('/connect/status', protect, requireRole('freelancer'), async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
@@ -188,14 +178,11 @@ router.get('/connect/status', protect, requireRole('freelancer'), async (req, re
     let isReady = false;
     let currentStatus = user.razorpayAccountStatus || 'created';
 
-    // Verify live status directly with Razorpay SDK
     if (isRazorpayConfigured && razorpay) {
       try {
         const remoteAcc = await razorpay.accounts.fetch(user.razorpayAccountId);
         if (remoteAcc) {
           currentStatus = remoteAcc.status || currentStatus;
-          
-          // 🌟 STRICT READINESS RULE: Requires confirmed 'activated' or 'active' from Razorpay.
           isReady = Boolean(
             remoteAcc.status === 'activated' ||
             remoteAcc.status === 'active'
@@ -226,9 +213,7 @@ router.get('/connect/status', protect, requireRole('freelancer'), async (req, re
   }
 });
 
-// =========================================================================
-// MILESTONE ESCROW CHECKOUT (UNTOUCHED)
-// =========================================================================
+// POST /api/payments/contracts/:contractId/milestones/:milestoneId/checkout
 router.post('/contracts/:contractId/milestones/:milestoneId/checkout', protect, requireRole('client'), async (req, res) => {
   try {
     if (!isRazorpayConfigured || !razorpay) return razorpayUnavailable(res);
@@ -260,7 +245,7 @@ router.post('/contracts/:contractId/milestones/:milestoneId/checkout', protect, 
 
     const attempt = (milestone.paymentAttempt || 0) + 1;
     const order = await razorpay.orders.create({
-      amount: Math.round(milestone.amount * 100), // paise
+      amount: Math.round(milestone.amount * 100),
       currency: 'INR',
       receipt: `ms_${milestone._id.toString().slice(-16)}_${attempt}`,
       notes: {
@@ -288,7 +273,7 @@ router.post('/contracts/:contractId/milestones/:milestoneId/checkout', protect, 
   }
 });
 
-// CANCEL CHECKOUT (UNTOUCHED)
+// POST /api/payments/contracts/:contractId/milestones/:milestoneId/cancel-checkout
 router.post('/contracts/:contractId/milestones/:milestoneId/cancel-checkout', protect, requireRole('client'), async (req, res) => {
   try {
     const contract = await Contract.findById(req.params.contractId);
@@ -320,7 +305,7 @@ router.post('/contracts/:contractId/milestones/:milestoneId/cancel-checkout', pr
   }
 });
 
-// PAYMENT VERIFICATION (UNTOUCHED)
+// POST /api/payments/verify
 router.post('/verify', protect, async (req, res) => {
   try {
     if (!isRazorpayConfigured || !razorpay) return razorpayUnavailable(res);
@@ -393,7 +378,6 @@ async function markMilestoneFundedByOrderId(orderId, paymentId, expectedClientId
   return { contract, alreadyFunded: false };
 }
 
-// WEBHOOK HANDLER (UNTOUCHED)
 export async function handleRazorpayWebhook(req, res) {
   if (!hasWebhookSecret()) {
     return res.status(503).json({ success: false, message: 'Razorpay webhook is not configured.' });
@@ -406,7 +390,7 @@ export async function handleRazorpayWebhook(req, res) {
     .digest('hex');
 
   if (!safeEqual(signature, expectedSignature)) {
-    console.error('⚠️  Razorpay webhook signature verification failed.');
+    console.error('⚠️ Razorpay webhook signature verification failed.');
     return res.status(400).json({ success: false, message: 'Invalid signature' });
   }
 

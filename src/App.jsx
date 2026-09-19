@@ -38,10 +38,32 @@ export default function App() {
   };
 
   const [activeTab, setActiveTabState] = useState(getInitialRoute);
-  const [userRole, setUserRole] = useState('freelancer');
+
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('workpulse_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [userRole, setUserRole] = useState(() => {
+    try {
+      const saved = localStorage.getItem('workpulse_user');
+      return saved ? JSON.parse(saved)?.role || 'freelancer' : 'freelancer';
+    } catch {
+      return 'freelancer';
+    }
+  });
+
   const [serverOnline, setServerOnline] = useState(false);
 
   const setActiveTab = (tab) => {
+    // Prevent freelancers from being routed to talent tab
+    if (tab === 'freelancers' && currentUser?.role === 'freelancer') {
+      tab = 'explore';
+    }
     setActiveTabState(tab);
     const newPath = tab === 'explore' ? '/' : `/${tab}`;
     if (window.location.pathname !== newPath) {
@@ -56,20 +78,17 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const [currentUser, setCurrentUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('workpulse_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
+  // Automatic fallback: if a logged-in freelancer enters /freelancers, route back to explore
+  useEffect(() => {
+    if (currentUser?.role === 'freelancer' && activeTab === 'freelancers') {
+      setActiveTab('explore');
     }
-  });
+  }, [currentUser, activeTab]);
 
   const [projects, setProjects] = useState([]);
   const [freelancers, setFreelancers] = useState([]);
   const [proposals, setProposals] = useState([]);
   const [contracts, setContracts] = useState([]);
-
   const [savedProjectIds, setSavedProjectIds] = useState(() => {
     try {
       const saved = localStorage.getItem('workpulse_saved_projects');
@@ -100,8 +119,12 @@ export default function App() {
 
   useEffect(() => {
     try {
-      if (currentUser) localStorage.setItem('workpulse_user', JSON.stringify(currentUser));
-      else localStorage.removeItem('workpulse_user');
+      if (currentUser) {
+        localStorage.setItem('workpulse_user', JSON.stringify(currentUser));
+        if (currentUser.role) setUserRole(currentUser.role);
+      } else {
+        localStorage.removeItem('workpulse_user');
+      }
     } catch {}
   }, [currentUser]);
 
@@ -119,7 +142,11 @@ export default function App() {
       setServerOnline(isOnline);
       if (isOnline) {
         const me = await apiFetchMe();
-        if (me) { setCurrentUser(me); setUserRole(me.role); }
+        if (me) { 
+          const userData = me.user || me;
+          setCurrentUser(userData); 
+          if (userData.role) setUserRole(userData.role); 
+        }
         setProjects((await apiFetchProjects()) || []);
         setProposals((await apiFetchProposals()) || []);
         loadContracts();
@@ -148,8 +175,8 @@ export default function App() {
           page: 1, 
           limit: 12 
         });
-        setProjects(result.projects || []);
-        setProjectSearchMeta({ total: result.total, page: result.page, pages: result.pages });
+        setProjects(result.projects || result || []);
+        setProjectSearchMeta({ total: result.total || result.totalProjects || 0, page: result.page || 1, pages: result.pages || result.totalPages || 1 });
       } catch (error) {
         setProjectsError(error.message);
       } finally {
@@ -271,7 +298,6 @@ export default function App() {
     showToast('Logged out successfully', 'info');
   };
 
-  // 🌟 REAL BACKEND ACCOUNT DELETION HANDLER
   const handleDeleteAccount = async () => {
     try {
       await apiDeleteAccount();
@@ -281,10 +307,11 @@ export default function App() {
       setActiveTab('explore');
       showToast('Your account has been deleted and personal data anonymized.', 'info');
     } catch (err) {
-      // KEEP ACCOUNT & SESSION INTACT ON ERROR!
       showToast(err.message || 'Could not delete account', 'error');
     }
   };
+
+  const isClient = currentUser?.role === 'client' || userRole === 'client';
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -305,16 +332,13 @@ export default function App() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
       />
-
       <main style={{ flex: 1 }}>
         {activeTab === 'login' && (
           <AuthPage mode="login" onNavigate={(tab) => setActiveTab(tab)} onLoginSuccess={handleLoginSuccess} />
         )}
-
         {activeTab === 'signup' && (
           <AuthPage mode="signup" onNavigate={(tab) => setActiveTab(tab)} onLoginSuccess={handleLoginSuccess} />
         )}
-
         {activeTab === 'explore' && (
           <>
             <Hero onNavigate={(tab) => setActiveTab(tab)} currentUser={currentUser} />
@@ -353,13 +377,14 @@ export default function App() {
             </div>
           </>
         )}
-
+        
+        {/* Talent Section — Protected for Clients only */}
         {activeTab === 'freelancers' && (
-          currentUser ? (
+          isClient ? (
             <FreelancerList freelancers={freelancers} onSelectFreelancer={(freelancer) => setSelectedFreelancer(freelancer)} />
-          ) : (
+          ) : !currentUser ? (
             <AuthGate title="Log in to find talent" message="Create a free client account to browse freelancer profiles and hire." onLogin={() => setActiveTab('login')} onSignup={() => setActiveTab('signup')} />
-          )
+          ) : null
         )}
 
         {activeTab === 'dashboard' && (
@@ -390,15 +415,12 @@ export default function App() {
       {selectedProject && (
         <ProjectModal project={selectedProject} onClose={() => setSelectedProject(null)} onSubmitProposal={handleSubmitProposal} currentUser={currentUser} onRequireAuth={(mode) => { setSelectedProject(null); setActiveTab(mode); }} />
       )}
-
       {selectedFreelancer && (
         <FreelancerModal freelancer={selectedFreelancer} onClose={() => setSelectedFreelancer(null)} onDirectHire={handleDirectHire} />
       )}
-
       {isPostModalOpen && (
         <PostProjectModal categories={CATEGORIES} onClose={() => setIsPostModalOpen(false)} onSubmitProject={handleCreateProject} currentUser={currentUser} />
       )}
-
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );

@@ -1,9 +1,10 @@
-const express = require('express');
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import User from '../models/User.js';
+import { protect } from '../middleware/authMiddleware.js';
+
 const router = express.Router();
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const User = require('../models/User');
-const { protect } = require('../middleware/authMiddleware');
 
 // Helper to generate JWT token
 const generateToken = (id) => {
@@ -35,12 +36,9 @@ const handleRegister = async (req, res) => {
     const userGender = gender === 'female' ? 'female' : 'male';
     const userAvatar = avatar || '';
 
-    // Hash password if User model doesn't have an internal pre-save hook
-    let hashedPassword = password;
     const salt = await bcrypt.genSalt(10);
-    hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Persist to MongoDB with synchronized title and profession
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
@@ -83,7 +81,6 @@ const handleRegister = async (req, res) => {
   }
 };
 
-// Aliased routes so both /register and /signup work seamlessly
 router.post('/register', handleRegister);
 router.post('/signup', handleRegister);
 
@@ -143,7 +140,7 @@ router.post('/login', async (req, res) => {
 });
 
 // ==========================================
-// GOOGLE AUTH (Preserved Untouched)
+// GOOGLE AUTH
 // ==========================================
 router.post('/google', async (req, res) => {
   try {
@@ -153,14 +150,9 @@ router.post('/google', async (req, res) => {
     let userAvatar = avatar;
 
     if (credential && !userEmail) {
-      const base64Url = credential.split('.')[1];
+      const base64Url = credential.split('.');
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split('')
-          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-          .join('')
-      );
+      const jsonPayload = Buffer.from(base64, 'base64').toString('utf-8');
       const decoded = JSON.parse(jsonPayload);
       userEmail = decoded.email;
       userName = decoded.name;
@@ -231,7 +223,6 @@ router.get('/me', protect, async (req, res) => {
 
 // ==========================================
 // UPDATE CURRENT USER PROFILE (/api/auth/me)
-// Used by Google Signup Step 2
 // ==========================================
 router.put('/me', protect, async (req, res) => {
   try {
@@ -291,4 +282,4 @@ router.delete('/me', protect, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
