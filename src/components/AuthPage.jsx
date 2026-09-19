@@ -49,7 +49,7 @@ export default function AuthPage({ mode = 'login', onNavigate, onLoginSuccess })
   const [errorMsg, setErrorMsg] = useState('');
 
   // ⬇️ YAHAN APNA GOOGLE CLIENT ID PASTE KIJIYE
-  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "280021707225-0qr13uu5r92ed53jrbg9ufem67jgekks.apps.googleusercontent.com";
 
   // Gender change handler
   const handleGenderChange = (selectedGender) => {
