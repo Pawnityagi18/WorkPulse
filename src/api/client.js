@@ -1,36 +1,33 @@
-export const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+export const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:5000'
+    : 'https://workpulse-z287.onrender.com')
+).replace(/\/+$/, '');
 
 export const getHeaders = (includeAuth = true, extraHeaders = {}) => {
   const headers = { 'Content-Type': 'application/json', ...extraHeaders };
-
   if (includeAuth && typeof window !== 'undefined') {
     const token = localStorage.getItem('workpulse_token');
     if (token) headers.Authorization = `Bearer ${token}`;
   }
-
   return headers;
 };
 
 export const safeFetchJson = async (url, options = {}) => {
   const response = await fetch(url, options);
   const data = await response.json().catch(() => ({}));
-
   if (!response.ok) {
     const errorMsg = data.message || data.error || `Request failed (${response.status})`;
     throw new Error(errorMsg);
   }
-
   return data;
 };
 
 // Shorthand helpers for backend API calls
-
 const get = (path, params) => {
   const qs = params ? `?${new URLSearchParams(params).toString()}` : '';
-
-  return safeFetchJson(`${API_BASE_URL}/api${path}${qs}`, {
-    headers: getHeaders()
-  });
+  return safeFetchJson(`${API_BASE_URL}/api${path}${qs}`, { headers: getHeaders() });
 };
 
 const post = (path, data) =>
@@ -61,7 +58,6 @@ const del = (path) =>
   });
 
 // Clean list unwrap without any circular references
-
 const unwrap = (res, key) => {
   if (Array.isArray(res)) return res;
   if (res && Array.isArray(res[key])) return res[key];
@@ -81,9 +77,7 @@ export const setAuthToken = (token) => {
 };
 
 export const checkServerHealth = async () =>
-  fetch(`${API_BASE_URL}/health`)
-    .then((r) => r.ok)
-    .catch(() => true);
+  fetch(`${API_BASE_URL}/health`).then((r) => r.ok).catch(() => true);
 
 // ==========================================
 // AUTHENTICATION & PROFILE
@@ -134,15 +128,9 @@ export const apiFetchMe = apiGetMe;
 
 export const apiUpdateProfile = (profileData) => {
   const professionTitle = (profileData.profession || profileData.title || '').trim();
-
   const body = professionTitle
-    ? {
-        ...profileData,
-        profession: professionTitle,
-        title: professionTitle
-      }
+    ? { ...profileData, profession: professionTitle, title: professionTitle }
     : profileData;
-
   return put('/auth/me', body);
 };
 
@@ -155,22 +143,13 @@ export const apiLogout = () => {
   }
 };
 
-export const apiChangePassword = (passwords) =>
-  post('/auth/change-password', passwords);
+export const apiChangePassword = (passwords) => post('/auth/change-password', passwords);
 
 export const apiUploadAvatar = async (formData) => {
-  const isForm =
-    typeof FormData !== 'undefined' && formData instanceof FormData;
-
-  const token =
-    typeof window !== 'undefined'
-      ? localStorage.getItem('workpulse_token')
-      : null;
-
+  const isForm = typeof FormData !== 'undefined' && formData instanceof FormData;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('workpulse_token') : null;
   const headers = isForm
-    ? token
-      ? { Authorization: `Bearer ${token}` }
-      : {}
+    ? (token ? { Authorization: `Bearer ${token}` } : {})
     : getHeaders();
 
   const response = await fetch(`${API_BASE_URL}/api/auth/avatar`, {
@@ -178,7 +157,6 @@ export const apiUploadAvatar = async (formData) => {
     headers,
     body: isForm ? formData : JSON.stringify(formData)
   });
-
   return response.json().catch(() => ({}));
 };
 
@@ -190,9 +168,7 @@ export const apiUploadFile = apiUploadAvatar;
 // ==========================================
 
 export const apiFetchNotifications = () =>
-  get('/notifications')
-    .then((r) => unwrap(r, 'notifications'))
-    .catch(() => []);
+  get('/notifications').then((r) => unwrap(r, 'notifications')).catch(() => []);
 
 export const apiMarkNotificationRead = (id) =>
   patch(`/notifications/${id}/read`).catch(() => ({}));
@@ -206,244 +182,131 @@ export const apiMarkAllNotificationsRead = () =>
 
 export const apiGenerateProjectDescription = (payload) => {
   const body = typeof payload === 'string' ? { prompt: payload } : payload;
-
-  return post('/ai/generate-description', body).catch(() => ({
-    description: ''
-  }));
+  return post('/ai/generate-description', body).catch(() => ({ description: '' }));
 };
 
 export const apiGenerateJobDescription = apiGenerateProjectDescription;
 
 export const apiFetchProjects = (params = {}) =>
-  get('/projects', params)
-    .then((r) => unwrap(r, 'projects'))
-    .catch(() => []);
+  get('/projects', params).then((r) => unwrap(r, 'projects')).catch(() => []);
 
 export const apiSearchProjects = async (params = {}) => {
   try {
-    let queryParams;
-
-    if (typeof params === 'string') {
-      queryParams = new URLSearchParams({ q: params });
-    } else {
-      queryParams = new URLSearchParams();
-
-      Object.entries(params).forEach(([key, value]) => {
-        if (
-          value !== undefined &&
-          value !== null &&
-          value !== ''
-        ) {
-          queryParams.append(
-            key === 'search' ? 'q' : key,
-            String(value)
-          );
-        }
-      });
-    }
-
-    return await safeFetchJson(
-      `${API_BASE_URL}/api/projects/search?${queryParams.toString()}`,
-      {
-        headers: getHeaders()
-      }
-    );
+    const query = typeof params === 'string' ? { q: params } : { ...params };
+    if (query.search && !query.q) query.q = query.search;
+    const res = await get('/projects/search', query).catch(() => get('/projects', query));
+    return unwrap(res, 'projects');
   } catch {
-    return {
-      success: false,
-      projects: [],
-      total: 0,
-      totalPages: 0,
-      categoryCounts: {}
-    };
+    return [];
   }
 };
 
-export const apiCreateProject = (projectData) =>
-  post('/projects', projectData);
-
-export const apiFetchProjectById = (id) =>
-  get(`/projects/${id}`);
-
-export const apiUpdateProject = (id, data) =>
-  put(`/projects/${id}`, data);
-
-export const apiDeleteProject = (id) =>
-  del(`/projects/${id}`);
-
-export const apiCloseProject = (id) =>
-  patch(`/projects/${id}/close`);
+export const apiCreateProject = (projectData) => post('/projects', projectData);
+export const apiFetchProjectById = (id) => get(`/projects/${id}`);
+export const apiUpdateProject = (id, data) => put(`/projects/${id}`, data);
+export const apiDeleteProject = (id) => del(`/projects/${id}`);
+export const apiCloseProject = (id) => patch(`/projects/${id}/close`);
 
 export const apiFetchProjectProposals = (id) =>
-  get(`/projects/${id}/proposals`)
-    .then((r) => unwrap(r, 'proposals'))
-    .catch(() => []);
+  get(`/projects/${id}/proposals`).then((r) => unwrap(r, 'proposals')).catch(() => []);
 
 // ==========================================
 // PROPOSALS
 // ==========================================
 
 export const apiFetchProposals = (params = {}) =>
-  get('/proposals', params)
-    .then((r) => unwrap(r, 'proposals'))
-    .catch(() => []);
+  get('/proposals', params).then((r) => unwrap(r, 'proposals')).catch(() => []);
 
-export const apiSubmitProposal = (data) =>
-  post('/proposals', data);
-
-export const apiAcceptProposal = (id) =>
-  patch(`/proposals/${id}/accept`);
-
-export const apiRejectProposal = (id) =>
-  patch(`/proposals/${id}/reject`);
-
-export const apiWithdrawProposal = (id) =>
-  del(`/proposals/${id}`);
-
-export const apiUpdateProposal = (id, data) =>
-  put(`/proposals/${id}`, data);
+export const apiSubmitProposal = (data) => post('/proposals', data);
+export const apiAcceptProposal = (id) => patch(`/proposals/${id}/accept`);
+export const apiRejectProposal = (id) => patch(`/proposals/${id}/reject`);
+export const apiWithdrawProposal = (id) => del(`/proposals/${id}`);
+export const apiUpdateProposal = (id, data) => put(`/proposals/${id}`, data);
 
 // ==========================================
 // CONTRACTS & MILESTONES
 // ==========================================
 
 export const apiFetchContracts = (params = {}) =>
-  get('/contracts', params)
-    .then((r) => unwrap(r, 'contracts'))
-    .catch(() => []);
+  get('/contracts', params).then((r) => unwrap(r, 'contracts')).catch(() => []);
 
-export const apiFetchContractById = (id) =>
-  get(`/contracts/${id}`);
-
-export const apiUpdateContract = (id, data) =>
-  put(`/contracts/${id}`, data);
-
-export const apiCompleteContract = (id) =>
-  patch(`/contracts/${id}/complete`);
-
-export const apiCancelContract = (id) =>
-  patch(`/contracts/${id}/cancel`);
+export const apiFetchContractById = (id) => get(`/contracts/${id}`);
+export const apiUpdateContract = (id, data) => put(`/contracts/${id}`, data);
+export const apiCompleteContract = (id) => patch(`/contracts/${id}/complete`);
+export const apiCancelContract = (id) => patch(`/contracts/${id}/cancel`);
 
 export const apiSubmitMilestone = (contractId, milestoneIndex) =>
-  post(
-    `/contracts/${contractId}/milestone/${milestoneIndex}/submit`
-  );
+  post(`/contracts/${contractId}/milestone/${milestoneIndex}/submit`);
 
 export const apiApproveMilestone = (contractId, milestoneIndex) =>
-  post(
-    `/contracts/${contractId}/milestone/${milestoneIndex}/approve`
-  );
+  post(`/contracts/${contractId}/milestone/${milestoneIndex}/approve`);
 
 export const apiReleaseMilestone = (contractId, milestoneIndex) =>
-  post(
-    `/contracts/${contractId}/milestones/${milestoneIndex}/release`,
-    {
-      contractId,
-      milestoneIndex
-    }
-  );
+  post(`/contracts/${contractId}/milestones/${milestoneIndex}/release`, {
+    contractId,
+    milestoneIndex
+  });
 
 export const apiFundMilestone = (contractId, milestoneIndex) =>
-  post(
-    `/contracts/${contractId}/milestones/${milestoneIndex}/fund`,
-    {
-      contractId,
-      milestoneIndex
-    }
-  );
+  post(`/contracts/${contractId}/milestones/${milestoneIndex}/fund`, {
+    contractId,
+    milestoneIndex
+  });
 
-export const apiCancelMilestoneCheckout = (
-  contractId,
-  milestoneIndex
-) =>
-  post(
-    `/contracts/${contractId}/milestones/${milestoneIndex}/cancel-checkout`,
-    {
-      contractId,
-      milestoneIndex
-    }
-  ).catch(() => ({}));
+export const apiCancelMilestoneCheckout = (contractId, milestoneIndex) =>
+  post(`/contracts/${contractId}/milestones/${milestoneIndex}/cancel-checkout`, {
+    contractId,
+    milestoneIndex
+  }).catch(() => ({}));
 
 // ==========================================
 // PAYMENTS & PAYOUTS
 // ==========================================
 
 export const apiVerifyPayment = (payload) =>
-  post(
-    '/payments/verify',
-    typeof payload === 'string'
-      ? { sessionId: payload }
-      : payload
-  );
+  post('/payments/verify', typeof payload === 'string' ? { sessionId: payload } : payload);
 
 export const apiGetPayoutStatus = () =>
-  get('/payments/payout-status').catch(() => ({
-    status: 'unconfigured'
-  }));
+  get('/payments/payout-status').catch(() => ({ status: 'unconfigured' }));
 
 export const apiStartPayoutOnboarding = () =>
-  post('/payments/onboard-payout').catch(() => ({
-    url: '#'
-  }));
+  post('/payments/onboard-payout').catch(() => ({ url: '#' }));
 
 export const apiDepositEscrow = (contractId, amount) =>
-  post('/escrow/deposit', {
-    contractId,
-    amount
-  });
+  post('/escrow/deposit', { contractId, amount });
 
 export const apiReleaseEscrow = (contractId) =>
-  post('/escrow/release', {
-    contractId
-  });
+  post('/escrow/release', { contractId });
 
 export const apiReleasePayment = apiReleaseEscrow;
 
-export const apiFetchTransactions = () =>
-  get('/payments/transactions').catch(() => []);
-
-export const apiFetchInvoices = () =>
-  get('/payments/invoices').catch(() => []);
+export const apiFetchTransactions = () => get('/payments/transactions').catch(() => []);
+export const apiFetchInvoices = () => get('/payments/invoices').catch(() => []);
 
 // ==========================================
 // FREELANCERS & DIRECT HIRE
 // ==========================================
 
 export const apiFetchFreelancers = (params = {}) =>
-  get('/freelancers', params)
-    .then((r) => unwrap(r, 'freelancers'))
-    .catch(() => []);
+  get('/freelancers', params).then((r) => unwrap(r, 'freelancers')).catch(() => []);
 
-export const apiFetchFreelancerById = (id) =>
-  get(`/freelancers/${id}`);
-
-export const apiFetchFreelancerProfile =
-  apiFetchFreelancerById;
-
-export const apiUpdateFreelancerProfile = (data) =>
-  put('/freelancers/profile', data);
-
-export const apiDirectHire = (hireData) =>
-  post('/contracts/direct-hire', hireData);
+export const apiFetchFreelancerById = (id) => get(`/freelancers/${id}`);
+export const apiFetchFreelancerProfile = apiFetchFreelancerById;
+export const apiUpdateFreelancerProfile = (data) => put('/freelancers/profile', data);
+export const apiDirectHire = (hireData) => post('/contracts/direct-hire', hireData);
 
 // ==========================================
 // REVIEWS & CHAT
 // ==========================================
 
-export const apiCreateReview = (reviewData) =>
-  post('/reviews', reviewData);
-
-export const apiFetchReviews = (params = {}) =>
-  get('/reviews', params).catch(() => []);
+export const apiCreateReview = (reviewData) => post('/reviews', reviewData);
+export const apiFetchReviews = (params = {}) => get('/reviews', params).catch(() => []);
 
 export const apiFetchMessages = (conversationId) =>
   get(`/messages/${conversationId}`).catch(() => []);
 
-export const apiSendMessage = (messageData) =>
-  post('/messages', messageData);
-
-export const apiFetchConversations = () =>
-  get('/messages/conversations').catch(() => []);
+export const apiSendMessage = (messageData) => post('/messages', messageData);
+export const apiFetchConversations = () => get('/messages/conversations').catch(() => []);
 
 export const apiMarkMessagesRead = (conversationId) =>
   patch(`/messages/${conversationId}/read`).catch(() => ({}));
@@ -452,8 +315,5 @@ export const apiMarkMessagesRead = (conversationId) =>
 // DASHBOARD & STATS
 // ==========================================
 
-export const apiFetchStats = () =>
-  get('/dashboard/stats').catch(() => ({}));
-
-export const apiFetchDashboard = () =>
-  get('/dashboard').catch(() => ({}));
+export const apiFetchStats = () => get('/dashboard/stats').catch(() => ({}));
+export const apiFetchDashboard = () => get('/dashboard').catch(() => ({}));
