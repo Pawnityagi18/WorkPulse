@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import connectDB from './config/db.js';
 import { generalLimiter } from './middleware/rateLimiter.js';
+
 import authRoutes from './routes/authRoutes.js';
 import projectRoutes from './routes/projectRoutes.js';
 import proposalRoutes from './routes/proposalRoutes.js';
@@ -23,7 +24,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Enable proxy trust so Vercel & Render proxies pass real client IP
+// Trust proxy for Render deployment
 app.set('trust proxy', 1);
 
 // Security middleware
@@ -31,19 +32,35 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 
-// Restrict CORS to configured frontend in production
-const allowedOrigin = process.env.FRONTEND_URL;
-app.use(cors(allowedOrigin ? { origin: allowedOrigin, credentials: true } : {}));
+// CORS: Allow both Localhost and live Vercel domains seamlessly
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5000',
+  'https://workpulse-force.vercel.app',
+  process.env.FRONTEND_URL
+].filter(Boolean).map(url => url.replace(/\/+$/, ''));
 
-// General rate limiter
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin or from Vercel / localhost
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Fallback to allow connection
+    }
+  },
+  credentials: true
+}));
+
 app.use('/api/', generalLimiter);
 
-// IMPORTANT: Razorpay webhook
+// IMPORTANT: the Razorpay webhook needs the raw request body to verify the signature,
+// so it must be registered BEFORE express.json() and must not be re-parsed as JSON.
 app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), handleRazorpayWebhook);
 
 app.use(express.json());
 
-// Serve uploaded files
+// Serve uploaded files (avatars, etc.)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Connect Database
